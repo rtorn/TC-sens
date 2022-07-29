@@ -1,17 +1,14 @@
-import os
+import os, sys
 import logging
 import json
-import time
 import importlib
-import math
 import netCDF4 as nc
 import numpy as np
 import datetime as dt
-#from windspharm.standard import VectorWind
-#from windspharm.tools import prep_data
 import metpy.constants as mpcon
 import metpy.calc as mpcalc
 from metpy.units import units
+
 import surgery
 import grid_calc
 

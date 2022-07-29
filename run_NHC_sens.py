@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import cartopy
 import cartopy.crs as ccrs
 
+sys.path.append('../esens-util')
 import atcf_tools as atools
 import trop_cyclone as tc
 import fcst_metrics_tc as fmtc
