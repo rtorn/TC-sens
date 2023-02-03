@@ -358,6 +358,55 @@ class ComputeTCFields:
           logging.warning("  Obtaining 500-850 hPa water vapor data from {0}".format(outfile))
 
 
+        #  Compute the IVT (if desired and file is missing)
+        outfile='{0}/{1}_f{2}_ivt_ens.nc'.format(config['work_dir'],datea,self.fff)
+        if (not os.path.isfile(outfile) and config['fields'].get('calc_ivt','True') == 'True'):
+
+          logging.warning("  Computing IVT")
+
+          vDict = {'latitude': (lat1, lat2), 'longitude': (lon1, lon2),
+                   'description': 'Integrated Water Vapor Transport', 'units': 'kg s-1', '_FillValue': -9999.}
+          vDict = g1.set_var_bounds('temperature', vDict)
+
+          ensmat = g1.create_ens_array('temperature', g1.nens, vDict)
+
+          if 'ivt' in g1.var_dict:
+
+            for n in range(g1.nens):
+               ensmat[n,:,:] = g1.read_grib_field('ivt', n, vDict)
+
+          else:
+
+            vDict = {'latitude': (lat1, lat2), 'longitude': (lon1, lon2), 'isobaricInhPa': (400, 1000),
+                     'description': 'Integrated Water Vapor Transport', 'units': 'hPa', '_FillValue': -9999.}
+            vDict = g1.set_var_bounds('temperature', vDict)
+
+            for n in range(g1.nens):
+
+               #  Obtain the wind speeds
+               uwnd = g1.read_grib_field('zonal_wind', n, vDict)
+               vwnd = g1.read_grib_field('meridional_wind', n, vDict)
+               uwnd[:,:,:] = np.sqrt(uwnd[:,:,:]**2 + vwnd[:,:,:]**2) * units('m / sec')
+
+               #  Compute the mixing ratio
+               pres = (uwnd.isobaricInhPa.values * units.hPa).to(units.Pa)
+
+               if g1.has_specific_humidity:
+                  qvap = g1.read_grib_field('specific_humidity', n, vDict) * units('dimensionless')
+               else:
+                  tmpk = g1.read_grib_field('temperature', n, vDict) * units('K')
+                  relh = np.minimum(np.maximum(g1.read_grib_field('relative_humidity', n, vDict), 0.01), 100.0) * units('percent')
+                  qvap = mpcalc.mixing_ratio_from_relative_humidity(pres[:,None,None], tmpk, relh)
+                  del tmpk, relh
+
+               #  Integrate water vapor over the pressure levels
+               ensmat[n,:,:] = np.abs(np.trapz(uwnd[:,:,:]*qvap[:,:,:], pres, axis=0)) / mpcon.earth_gravity
+               del uwnd,vwnd,qvap,pres
+
+          ensmat.to_netcdf(outfile, encoding=dencode)
+          del ensmat
+
+
         #  Compute wind-related forecast fields (if desired and file is missing)
         if config['fields'].get('calc_winds','False') == 'True':
 
@@ -403,6 +452,50 @@ class ComputeTCFields:
 
                  logging.warning("  Obtaining {0} hPa wind information from file".format(levstr))
 
+
+        #  Compute vorticity forecast fields (if desired and file is missing)
+        if config['fields'].get('calc_vorticity','False') == 'True':
+
+          if 'vorticity_levels' in config['fields']:
+             vor_list = json.loads(config['fields'].get('vorticity_levels'))
+          else:
+             vor_list = [850]
+
+          vortrad = float(config['fields'].get('vorticity_radius','100'))
+
+          for level in vor_list:
+
+             levstr = '%0.3i' % int(level)
+             outfile='{0}/{1}_f{2}_vor{3}hPa_ens.nc'.format(config['work_dir'],datea,self.fff,levstr)
+
+             if not os.path.isfile(outfile):
+
+                logging.warning('  Computing {0} hPa vorticity information'.format(levstr))
+
+                vDict = {'latitude': (lat1, lat2), 'longitude': (lon1, lon2), 'isobaricInhPa': (level, level),
+                         'description': '{0} hPa vorticity'.format(levstr), 'units': '1/s', '_FillValue': -9999.}
+                vDict = g1.set_var_bounds('zonal_wind', vDict)
+
+                ensmat = g1.create_ens_array('zonal_wind', g1.nens, vDict)
+
+                for n in range(g1.nens):
+
+                   uwnd = g1.read_grib_field('zonal_wind', n, vDict).squeeze() * units('m/s')
+                   vwnd = g1.read_grib_field('meridional_wind', n, vDict).squeeze() * units('m/s')
+
+                   lat  = ensmat.latitude.values
+                   lon  = ensmat.longitude.values
+                   dx, dy = mpcalc.lat_lon_grid_deltas(lon, lat, x_dim=-1, y_dim=-2, geod=None)
+                   div = mpcalc.divergence(uwnd, vwnd, dx=dx, dy=dy)
+                   ensmat[n,:,:] = grid_calc.calc_circ_llgrid(div, vortrad, lat, lon, eval(config['fields'].get('global','False')), \
+                                                              len(lon), len(lat)) * 1.0e5
+
+                ensmat.to_netcdf(outfile, encoding=dencode)
+                del ensmat
+
+             elif os.path.isfile(outfile):
+
+                logging.warning("  Obtaining {0} hPa vorticity information from file".format(levstr))
 
 
 if __name__ == "__main__":
