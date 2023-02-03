@@ -128,9 +128,12 @@ class ComputeSensitivity:
       metric = mfile.variables['fore_met_init'][:]
       nens   = len(metric)
       metric = metric[:] - np.mean(metric, axis=0)
+      mettype = mfile.FORECAST_METRIC_SHORT_NAME
 
       plotDict['sensmax'] = np.std(metric) * 0.9
       plotDict['sig_value'] = scipy.stats.t.ppf(q=1-.05/2,df=self.nens)
+      stceDict['sensmax'] = float(plotDict['sensmax'])
+      stceDict['sig_value'] = float(plotDict['sig_value']) 
 
       #  Read major axis direction if appropriate  
       if hasattr(mfile.variables['fore_met_init'],'units'):
@@ -143,99 +146,119 @@ class ComputeSensitivity:
         ivec = 1.0
         jvec = 0.0
 
+      if mettype == 'trackeof':
+         plt_steer = True
+         plt_h500  = True
+         plt_pv250 = True
+         plt_ivt   = False
+      elif mettype == 'pcpeof':
+         plt_steer = True
+         plt_h500  = True
+         plt_pv250 = True
+         plt_ivt   = True
+      else:
+         plt_steer = True
+         plt_h500  = True
+         plt_pv250 = True
+         plt_ivt   = False
+
       #  Read the ensemble zonal and meridional steering wind, compute ensemble mean
-      ds = xr.open_dataset('{0}/{1}_f{2}_usteer_ens.nc'.format(config['work_dir'],datea,fhrt))
-      if ds.latitude[0] > ds.latitude[1]:
-         lattmp1 = lat1
-         lattmp2 = lat2
-         lat1    = lattmp2
-         lat2    = lattmp1
+      ufile = '{0}/{1}_f{2}_usteer_ens.nc'.format(config['work_dir'],datea,fhrt)
+      vfile = '{0}/{1}_f{2}_vsteer_ens.nc'.format(config['work_dir'],datea,fhrt)
+      if os.path.isfile(ufile) and os.path.isfile(vfile) and plt_steer:
 
-      uens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
-      lat = uens.latitude.values
-      lon = uens.longitude.values
-      umea = np.mean(uens, axis=0)
-      umea.attrs['units'] = ds['ensemble_data'].attrs['units']
-      uvar = np.var(uens, axis=0)
+         ds = xr.open_dataset(ufile)
+         if ds.latitude[0] > ds.latitude[1]:
+            lattmp1 = lat1
+            lattmp2 = lat2
+            lat1    = lattmp2
+            lat2    = lattmp1
 
-      ds = xr.open_dataset('{0}/{1}_f{2}_vsteer_ens.nc'.format(config['work_dir'],datea,fhrt))
-      vens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
-      vmea  = np.mean(vens, axis=0)
-      vmea.attrs['units'] = ds.ensemble_data.attrs['units']
-      vvar = np.var(vens, axis=0)
+         uens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
+         lat = uens.latitude.values
+         lon = uens.longitude.values
+         umea = np.mean(uens, axis=0)
+         umea.attrs['units'] = ds['ensemble_data'].attrs['units']
+         uvar = np.var(uens, axis=0)
 
-      #  Compute sensitivity with respect to zonal steering wind
-      sens, sigv = computeSens(uens, umea, uvar, metric)
-      sens[:,:] = sens[:,:] * np.sqrt(uvar[:,:])
+         ds = xr.open_dataset(vfile)
+         vens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
+         vmea  = np.mean(vens, axis=0)
+         vmea.attrs['units'] = ds.ensemble_data.attrs['units']
+         vvar = np.var(vens, axis=0)
 
-      outdir = '{0}/{1}/sens/usteer'.format(config['figure_dir'],metname)
-      if not os.path.isdir(outdir):
-        os.makedirs(outdir)
+         #  Compute sensitivity with respect to zonal steering wind
+         sens, sigv = computeSens(uens, umea, uvar, metric)
+         sens[:,:] = sens[:,:] * np.sqrt(uvar[:,:])
 
-      if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
-        if not os.path.isdir('{0}/{1}'.format(datea,bbnn)):
-          os.makedirs('{0}/{1}'.format(datea,bbnn))
-        writeSensFile(lat, lon, fhr, umea, sens, sigv, '{0}/{1}/{0}_f{2}_usteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+         outdir = '{0}/{1}/sens/usteer'.format(config['figure_dir'],metname)
+         if not os.path.isdir(outdir):
+            os.makedirs(outdir)
 
-      plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), plotDict)
+         if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
+            if not os.path.isdir('{0}/{1}'.format(datea,bbnn)):
+               os.makedirs('{0}/{1}'.format(datea,bbnn))
+            writeSensFile(lat, lon, fhr, umea, sens, sigv, '{0}/{1}/{0}_f{2}_usteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
 
-      if e_cnt > 0:
-        outdir = '{0}/{1}/sens_sc/usteer'.format(config['figure_dir'],metname)
-        if not os.path.isdir(outdir):
-          os.makedirs(outdir)
+         plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
-        plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), stceDict)
+         if e_cnt > 0:
+            outdir = '{0}/{1}/sens_sc/usteer'.format(config['figure_dir'],metname)
+            if not os.path.isdir(outdir):
+               os.makedirs(outdir)
 
-
-      #  Compute sensitivity with respect to meridional steering wind
-      sens, sigv = computeSens(vens, vmea, vvar, metric)
-      sens[:,:] = sens[:,:] * np.sqrt(vvar[:,:])
-
-      outdir = '{0}/{1}/sens/vsteer'.format(config['figure_dir'],metname)
-      if not os.path.isdir(outdir):
-        os.makedirs(outdir)
-
-      if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
-        writeSensFile(lat, lon, fhr, umea, sens, sigv, '{0}/{1}/{0}_f{2}_vsteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
-
-      plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), plotDict)
-
-      if e_cnt > 0:
-        outdir = '{0}/{1}/sens_sc/vsteer'.format(config['figure_dir'],metname)
-        if not os.path.isdir(outdir):
-          os.makedirs(outdir)
-
-        plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), stceDict)
+            plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), stceDict)
 
 
-      #  Rotate wind into major axis direction, compute sensitivity to steering wind in that direction
-      wens = ivec * uens[:,:,:] + jvec * vens[:,:,:]
-      emea = np.mean(wens, axis=0)
-      evar = np.var(wens, axis=0)
-      emea.attrs['units'] = ds.ensemble_data.attrs['units']
-      sens, sigv = computeSens(wens, emea, evar, metric)
-      sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
+         #  Compute sensitivity with respect to meridional steering wind
+         sens, sigv = computeSens(vens, vmea, vvar, metric)
+         sens[:,:] = sens[:,:] * np.sqrt(vvar[:,:])
 
-      outdir = '{0}/{1}/sens/masteer'.format(config['figure_dir'],metname)
-      if not os.path.isdir(outdir):
-        os.makedirs(outdir)
+         outdir = '{0}/{1}/sens/vsteer'.format(config['figure_dir'],metname)
+         if not os.path.isdir(outdir):
+            os.makedirs(outdir)
 
-      if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
-        writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_masteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+         if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
+            writeSensFile(lat, lon, fhr, umea, sens, sigv, '{0}/{1}/{0}_f{2}_vsteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
 
-      plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), plotDict)
+         plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
-      if e_cnt > 0:
-        outdir = '{0}/{1}/sens_sc/masteer'.format(config['figure_dir'],metname)
-        if not os.path.isdir(outdir):
-          os.makedirs(outdir)
+         if e_cnt > 0:
+            outdir = '{0}/{1}/sens_sc/vsteer'.format(config['figure_dir'],metname)
+            if not os.path.isdir(outdir):
+               os.makedirs(outdir)
 
-        plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), stceDict)
+            plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), stceDict)
+
+
+         #  Rotate wind into major axis direction, compute sensitivity to steering wind in that direction
+         wens = ivec * uens[:,:,:] + jvec * vens[:,:,:]
+         emea = np.mean(wens, axis=0)
+         evar = np.var(wens, axis=0)
+         emea.attrs['units'] = ds.ensemble_data.attrs['units']
+         sens, sigv = computeSens(wens, emea, evar, metric)
+         sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
+
+         outdir = '{0}/{1}/sens/masteer'.format(config['figure_dir'],metname)
+         if not os.path.isdir(outdir):
+            os.makedirs(outdir)
+
+         if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
+            writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_masteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+
+         plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), plotDict)
+
+         if e_cnt > 0:
+            outdir = '{0}/{1}/sens_sc/masteer'.format(config['figure_dir'],metname)
+            if not os.path.isdir(outdir):
+               os.makedirs(outdir)
+
+            plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), stceDict)
 
 
       #  Read steering flow streamfunction, compute sensitivity to that field, if the file exists
       ensfile = '{0}/{1}_f{2}_ssteer_ens.nc'.format(config['work_dir'],datea,fhrt)
-      if os.path.isfile(ensfile):
+      if os.path.isfile(ensfile) and plt_steer:
 
          ds = xr.open_dataset(ensfile)
          ens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
@@ -266,31 +289,33 @@ class ComputeSensitivity:
 
       #  Read steering flow vorticity, compute sensitivity to that field, if the file exists
       ensfile = '{0}/{1}_f{2}_csteer_ens.nc'.format(config['work_dir'],datea,fhrt)
-      ds = xr.open_dataset(ensfile)
-      ens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
-      lat = ens.latitude.values
-      lon = ens.longitude.values
-      emea  = np.mean(ens, axis=0)
-      emea.attrs['units'] = ds.ensemble_data.attrs['units']
-      evar = np.var(ens, axis=0)
+      if os.path.isfile(ensfile) and plt_steer:
 
-      sens, sigv = computeSens(ens, emea, evar, metric)
-      sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
+         ds = xr.open_dataset(ensfile)
+         ens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
+         lat = ens.latitude.values
+         lon = ens.longitude.values
+         emea  = np.mean(ens, axis=0)
+         emea.attrs['units'] = ds.ensemble_data.attrs['units']
+         evar = np.var(ens, axis=0)
 
-      outdir = '{0}/{1}/sens/csteer'.format(config['figure_dir'],metname)
-      if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         sens, sigv = computeSens(ens, emea, evar, metric)
+         sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
 
-      plotDict['meanCntrs'] = np.array([-5.0, -4.0, -3.0, -2.0, -1.5, -1.0, -0.5, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0])
-      plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_csteer_sens.png'.format(outdir,datea,fhrt), plotDict)
+         outdir = '{0}/{1}/sens/csteer'.format(config['figure_dir'],metname)
+         if not os.path.isdir(outdir):
+            os.makedirs(outdir)
 
-      if e_cnt > 0:
-        outdir = '{0}/{1}/sens_sc/csteer'.format(config['figure_dir'],metname)
-        if not os.path.isdir(outdir):
-          os.makedirs(outdir)
+         plotDict['meanCntrs'] = np.array([-5.0, -4.0, -3.0, -2.0, -1.5, -1.0, -0.5, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0])
+         plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_csteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
-        stceDict['meanCntrs'] = plotDict['meanCntrs']
-        plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_csteer_sens.png'.format(outdir,datea,fhrt), stceDict)
+         if e_cnt > 0:
+            outdir = '{0}/{1}/sens_sc/csteer'.format(config['figure_dir'],metname)
+            if not os.path.isdir(outdir):
+               os.makedirs(outdir)
+
+            stceDict['meanCntrs'] = plotDict['meanCntrs']
+            plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_csteer_sens.png'.format(outdir,datea,fhrt), stceDict)
 
 
       #  Read 250 hPa PV, compute sensitivity to that field, if the file exists
@@ -317,6 +342,32 @@ class ComputeSensitivity:
 
          plotDict['meanCntrs'] = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
          plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_pv250hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
+
+
+      #  Read 850 hPa theta-e, compute sensitivity to that field
+      ensfile = '{0}/{1}_f{2}_ivt_ens.nc'.format(config['work_dir'],datea,fhrt)
+      if plt_ivt and os.path.isfile(ensfile):
+
+         ds = xr.open_dataset(ensfile)
+         ens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
+         lat = ens.latitude.values
+         lon = ens.longitude.values
+         emea  = np.mean(ens, axis=0)
+         emea.attrs['units'] = ds.ensemble_data.attrs['units']
+         evar = np.var(ens, axis=0)
+
+         sens, sigv = computeSens(ens, emea, evar, metric)
+         sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
+
+         outdir = '{0}/{1}/sens/ivt'.format(config['figure_dir'],metname)
+         if not os.path.isdir(outdir):
+            os.makedirs(outdir)
+
+         if plotDict.get('output_sens', 'False')=='True' and 'intmajtrack' in metname:
+            writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_ivt_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+
+         plotDict['meanCntrs'] = np.array([200., 400., 600., 800., 1000., 1300., 1600.])
+         plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_ivt_sens.png'.format(outdir,datea,fhrt), plotDict)
 
 
       #  Read 850 hPa theta-e, compute sensitivity to that field
