@@ -20,7 +20,7 @@ sys.path.append('../esens-util')
 import atcf_tools as atools
 import trop_cyclone as tc
 import fcst_metrics_tc as fmtc
-import compute_tc_fields as tcf
+from compute_tc_fields import ComputeTCFields
 import nhc_sens as sens
 from SensPlotRoutines import background_map
 
@@ -188,7 +188,7 @@ def main():
     for fhr in range(0,int(config['fcst_hour_max'])+int(config['fcst_hour_int']),int(config['fcst_hour_int'])):
 
        logging.debug("Computing Fields {fhr}")
-       tcf.ComputeTCFields(datea, fhr, atcf, config)
+       ComputeTCFields(datea, fhr, atcf, config)
 
 
     #  Compute sensitivity of each metric to forecast fields at earlier times, as specified by the user
