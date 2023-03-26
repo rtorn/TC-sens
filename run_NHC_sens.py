@@ -9,6 +9,7 @@ import numpy as np
 import datetime as dt
 import configparser
 import logging
+from multiprocessing import Pool
 
 import matplotlib
 from IPython.core.pylabtools import figsize, getfigs
@@ -185,26 +186,55 @@ def main():
 
 
     #  Compute forecast fields at each desired time to use in sensitivity calculation
-    for fhr in range(0,int(config['fcst_hour_max'])+int(config['fcst_hour_int']),int(config['fcst_hour_int'])):
+    if eval(config['fields'].get('multiprocessor','False')):
 
-       logging.debug("Computing Fields {fhr}")
-       ComputeTCFields(datea, fhr, atcf, config)
+       arglist = [(datea, fhr, atcf, config) for fhr in range(0,int(config['fcst_hour_max'])+int(config['fcst_hour_int']),int(config['fcst_hour_int']))]
+       with Pool() as pool:
+          results = pool.map(ComputeTCFieldsParallel, arglist)
+
+    else:
+
+       for fhr in range(0,int(config['fcst_hour_max'])+int(config['fcst_hour_int']),int(config['fcst_hour_int'])):
+
+          logging.debug("Computing Fields {0}".format(fhr))
+          ComputeTCFields(datea, fhr, atcf, config)          
 
 
     #  Compute sensitivity of each metric to forecast fields at earlier times, as specified by the user
     logging.info("Computing Sensitivity")
-#    metlist = [e.strip() for e in config['sens']['metrics'].split(',')]
-    for i in range(len(metlist)):
+    if eval(config['sens'].get('multiprocessor','False')):    #  Use parallel processing
 
-       #  Limit loop over time to forecast metric lead time (i.e., for a 72 h forecast, do not compute 
-       #  the sensitivity to fields beyond 72 h
-       a = metlist[i].split('_')
-       fhrstr = a[0]
-       fhrmax = int(np.min([float(fhrstr[1:4]),float(config['fcst_hour_max'])]))
+       fhrarg = []
+       metarg = []
+       for i in range(len(metlist)):
 
-       for fhr in range(0,fhrmax+int(config['fcst_hour_int']),int(config['fcst_hour_int'])):
+          #  Limit loop over time to forecast metric lead time
+          a = metlist[i].split('_')
+          fhrstr = a[0]
+          fhrmax = int(np.min([float(fhrstr[1:4]),float(config['fcst_hour_max'])]))
 
-          ComputeSensitivity(datea, fhr, metlist[i], atcf, config)
+          for fhr in range(0,fhrmax+int(config['fcst_hour_int']),int(config['fcst_hour_int'])):
+
+             fhrarg.append(fhr)
+             metarg.append(metlist[i])
+
+       arglist = [(datea, fhrarg[i], metarg[i], atcf, config) for i in range(len(fhrarg))]
+       with Pool() as pool:
+          results = pool.map(ComputeSensitivityParallel, arglist)
+
+    else:  #  Use serial processing
+
+       for i in range(len(metlist)):
+ 
+          #  Limit loop over time to forecast metric lead time (i.e., for a 72 h forecast, do not compute 
+          #  the sensitivity to fields beyond 72 h
+          a = metlist[i].split('_')
+          fhrstr = a[0]
+          fhrmax = int(np.min([float(fhrstr[1:4]),float(config['fcst_hour_max'])]))
+
+          for fhr in range(0,fhrmax+int(config['fcst_hour_int']),int(config['fcst_hour_int'])):
+
+             ComputeSensitivity(datea, fhr, metlist[i], atcf, config)
 
 
     with open('{0}/metric_list'.format(config['work_dir']), 'w') as f:
@@ -350,6 +380,18 @@ def precipitation_ens_maps(datea, fhr1, fhr2, config):
 
     plt.savefig('{0}/{1}_f{2}_pcp24h_std.png'.format(outdir,datea,fff2),format='png',dpi=120,bbox_inches='tight')
     plt.close(fig)
+
+
+def ComputeTCFieldsParallel(args):
+
+    datea, fhr, atcf, config = args
+    ComputeTCFields(datea, fhr, atcf, config)
+
+
+def ComputeSensitivityParallel(args):
+
+    datea, fhr, metname, atcf, config = args
+    ComputeSensitivity(datea, fhr, metname, atcf, config)
 
 
 if __name__ == '__main__':
