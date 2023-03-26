@@ -21,7 +21,7 @@ import atcf_tools as atools
 import trop_cyclone as tc
 import fcst_metrics_tc as fmtc
 from compute_tc_fields import ComputeTCFields
-import nhc_sens as sens
+from nhc_sens import ComputeSensitivity
 from SensPlotRoutines import background_map
 
 #  Routine to read configuration file
@@ -204,7 +204,7 @@ def main():
 
        for fhr in range(0,fhrmax+int(config['fcst_hour_int']),int(config['fcst_hour_int'])):
 
-          sens.ComputeSensitivity(datea, fhr, metlist[i], atcf, config)
+          ComputeSensitivity(datea, fhr, metlist[i], atcf, config)
 
 
     with open('{0}/metric_list'.format(config['work_dir']), 'w') as f:
