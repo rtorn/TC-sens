@@ -184,11 +184,11 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/usteer'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          if not os.path.isdir('{0}/{1}'.format(datea,bbnn)):
-            os.makedirs('{0}/{1}'.format(datea,bbnn))
+            os.makedirs('{0}/{1}'.format(datea,bbnn), exist_ok=True)
          writeSensFile(lat, lon, fhr, umea, sens, sigv, '{0}/{1}/{0}_f{2}_usteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
 
       plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), plotDict)
@@ -196,7 +196,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if e_cnt > 0:
          outdir = '{0}/{1}/sens_sc/usteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
-            os.makedirs(outdir)
+            os.makedirs(outdir, exist_ok=True)
 
          plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), stceDict)
 
@@ -207,7 +207,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/vsteer'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, umea, sens, sigv, '{0}/{1}/{0}_f{2}_vsteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
@@ -217,7 +217,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if e_cnt > 0:
          outdir = '{0}/{1}/sens_sc/vsteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
-            os.makedirs(outdir)
+            os.makedirs(outdir, exist_ok=True)
 
          plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), stceDict)
 
@@ -232,7 +232,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/masteer'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_masteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
@@ -242,7 +242,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if e_cnt > 0:
          outdir = '{0}/{1}/sens_sc/masteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
-            os.makedirs(outdir)
+            os.makedirs(outdir, exist_ok=True)
 
          plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), stceDict)
 
@@ -264,7 +264,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/ssteer'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       plotDict['meanCntrs'] = np.arange(-100, 104, 4)
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_ssteer_sens.png'.format(outdir,datea,fhrt), plotDict)
@@ -272,7 +272,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if e_cnt > 0:
          outdir = '{0}/{1}/sens_sc/ssteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
-            os.makedirs(outdir)
+            os.makedirs(outdir, exist_ok=True)
 
          stceDict['meanCntrs'] = plotDict['meanCntrs']
          plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_ssteer_sens.png'.format(outdir,datea,fhrt), stceDict)
@@ -295,7 +295,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/csteer'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       plotDict['meanCntrs'] = np.array([-5.0, -4.0, -3.0, -2.0, -1.5, -1.0, -0.5, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0])
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_csteer_sens.png'.format(outdir,datea,fhrt), plotDict)
@@ -303,7 +303,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if e_cnt > 0:
          outdir = '{0}/{1}/sens_sc/csteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
-            os.makedirs(outdir)
+            os.makedirs(outdir, exist_ok=True)
 
          stceDict['meanCntrs'] = plotDict['meanCntrs']
          plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_csteer_sens.png'.format(outdir,datea,fhrt), stceDict)
@@ -326,7 +326,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/pv250hPa'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_pv250hPa_sens.nc'.format(datea,bbnn,fhrt), plotDict)
@@ -352,7 +352,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/ivt'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', 'False')=='True' and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_ivt_sens.nc'.format(datea,bbnn,fhrt), plotDict)
@@ -363,7 +363,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if e_cnt > 0:
          outdir = '{0}/{1}/sens_sc/ivt'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
-            os.makedirs(outdir)
+            os.makedirs(outdir, exist_ok=True)
 
          stceDict['meanCntrs'] = plotDict['meanCntrs']
          plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_ivt_sens.png'.format(outdir,datea,fhrt), stceDict)
@@ -386,7 +386,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/e700hPa'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', 'False')=='True' and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_e700hPa_sens.nc'.format(datea,bbnn,fhrt), plotDict)
@@ -412,7 +412,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/e850hPa'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', 'False')=='True' and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_e850hPa_sens.nc'.format(datea,bbnn,fhrt), plotDict)
@@ -445,7 +445,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/u925hPa'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_u925hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
 
@@ -454,7 +454,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/v925hPa'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_v925hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
 
@@ -476,7 +476,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/h500hPa'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_h500hPa_sens.nc'.format(datea,bbnn,fhrt), plotDict)
@@ -501,7 +501,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/q500-850hPa'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_q500-850hPa_sens.nc'.format(datea,bbnn,fhrt), plotDict)
@@ -512,7 +512,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if e_cnt > 0:
          outdir = '{0}/{1}/sens_sc/q500-850hPa'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
-            os.makedirs(outdir)
+            os.makedirs(outdir, exist_ok=True)
 
          stceDict['meanCntrs'] = plotDict['meanCntrs']
          plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_q500-850hPa_sens.png'.format(outdir,datea,fhrt), stceDict)

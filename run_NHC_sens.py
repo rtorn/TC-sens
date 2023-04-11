@@ -374,7 +374,7 @@ def precipitation_ens_maps(datea, fhr1, fhr2, config):
     outdir = '{0}/std/pcp'.format(config['figure_dir'])
     if not os.path.isdir(outdir):
        try:
-          os.makedirs(outdir)
+          os.makedirs(outdir, exist_ok=True)
        except OSError as e:
           raise e
 
