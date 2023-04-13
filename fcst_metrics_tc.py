@@ -472,7 +472,7 @@ class ComputeForecastMetrics:
         for n in range(self.nens):
 
            #  Read SLP field, compute the minimum SLP within a specified distance of the center
-           vDict = {'latitude': (lat_vec[n]-mslp_dll, lat_vec[n]+mslp_dll), 'longitude': (lon_vec[n]-mslp_dll,lon_vec[n]+mslp_dll)}
+           vDict = {'latitude': (lat_vec[n]-mslp_dll, lat_vec[n]+mslp_dll), 'longitude': (lon_vec[n]-mslp_dll, lon_vec[n]+mslp_dll)}
            vDict = g1.set_var_bounds('sea_level_pressure', vDict)
            f_met_slp[n] = np.min(g1.read_grib_field('sea_level_pressure', n, vDict))*0.01
 
@@ -738,7 +738,7 @@ class ComputeForecastMetrics:
 
 
         plot_ellipse = self.config['vitals_plot'].get('plot_ellipse',True)
-        ell_freq = self.config['vitals_plot'].get('ellipse_frequency', 24)
+        ell_freq = float(self.config['vitals_plot'].get('ellipse_frequency', 24))
         ellcol = ["#551A8B", "#00FFFF", "#00EE00", "#FF0000", "#FF00FF", "#551A8B", "#00FFFF", "#00EE00", "#FF0000"]
 
         minLat =  90.
@@ -1688,6 +1688,7 @@ class ComputeForecastMetrics:
            lon2 = float(conf['definition'].get('longitude_max'))
            metname = conf['definition'].get('metric_name','pcpeof')
            eofn = int(conf['definition'].get('eof_number',1))
+           mask_land = eval(conf['definition'].get('land_mask_metric','False'))
         except:
            logging.warning('{0} does not exist.  Cannot compute precip EOF'.format(infile))
            return None
@@ -1695,7 +1696,7 @@ class ComputeForecastMetrics:
         #  Read the total precipitation for the beginning of the window
         g1 = self.dpp.ReadGribFiles(self.datea_str, fhr2, self.config)
 
-        vDict = {'latitude': (lat1, lat2), 'longitude': (lon1, lon2),
+        vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
                  'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
         vDict = g1.set_var_bounds('precipitation', vDict)
 
@@ -1729,7 +1730,27 @@ class ComputeForecastMetrics:
         coslat = np.cos(np.deg2rad(ensmat.latitude.values)).clip(0., 1.)
         wgts = np.sqrt(coslat)[..., np.newaxis]
 
-        solver = Eof_xarray(ensmat.rename({'ensemble': 'time'}), weights=wgts)
+        if mask_land:
+
+           lmask = g1.read_static_field(self.config['metric'].get('static_fields_file'), 'landmask', vDict)
+           nlat = len(ensmat[0,:,0])
+           nlon = len(ensmat[0,0,:])
+           ngrid = -1
+           ensarr = xr.DataArray(name='ensemble_data', data=np.zeros([self.nens, nlat*nlon]), \
+                                   dims=['time', 'state'])
+
+           for i in range(nlon):
+              for j in range(nlat): 
+                 if lmask[j,i] > 0.0:
+                    ngrid = ngrid + 1
+                    ensarr[:,ngrid] = ensmat[:,j,i] * np.sqrt(coslat[j]) * lmask[j,i]
+
+           solver = Eof_xarray(ensarr[:,0:ngrid])
+
+        else:
+
+           solver = Eof_xarray(ensmat.rename({'ensemble': 'time'}), weights=wgts)
+
         pcout  = solver.pcs(npcs=eofn, pcscaling=1)
         pc1 = np.squeeze(pcout[:,-1])
         pc1[:] = pc1[:] / np.std(pc1)
@@ -1830,7 +1851,7 @@ class ComputeForecastMetrics:
         #  Read the total precipitation for the beginning of the window
         g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, self.config)
 
-        vDict = {'latitude': (lat1, lat2), 'longitude': (lon1, lon2),
+        vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
                  'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
         vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
 
