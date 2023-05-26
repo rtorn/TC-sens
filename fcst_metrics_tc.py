@@ -1831,8 +1831,6 @@ class ComputeForecastMetrics:
 
         infile = self.config['metric'].get('wind_metric_file').format(self.datea_str,self.storm)
 
-        print(infile)
-
         try:
            conf = configparser.ConfigParser()
            conf.read(infile)
@@ -1844,6 +1842,7 @@ class ComputeForecastMetrics:
            lon2 = float(conf['definition'].get('longitude_max'))
            metname = conf['definition'].get('metric_name','wndeof')
            eofn = int(conf['definition'].get('eof_number',1))
+           mask_land = eval(conf['definition'].get('land_mask_metric','False'))
         except:
            logging.warning('{0} does not exist.  Cannot compute wind EOF'.format(infile))
            return None
@@ -1878,7 +1877,27 @@ class ComputeForecastMetrics:
         coslat = np.cos(np.deg2rad(ensmat.latitude.values)).clip(0., 1.)
         wgts = np.sqrt(coslat)[..., np.newaxis]
 
-        solver = Eof_xarray(ensmat.rename({'ensemble': 'time'}), weights=wgts)
+        if mask_land:
+
+           lmask = g1.read_static_field(self.config['metric'].get('static_fields_file'), 'landmask', vDict)
+           nlat = len(ensmat[0,:,0])
+           nlon = len(ensmat[0,0,:])
+           ngrid = -1
+           ensarr = xr.DataArray(name='ensemble_data', data=np.zeros([self.nens, nlat*nlon]), \
+                                   dims=['time', 'state'])
+
+           for i in range(nlon):
+              for j in range(nlat):
+                 if lmask[j,i] > 0.0:
+                    ngrid = ngrid + 1
+                    ensarr[:,ngrid] = ensmat[:,j,i] * np.sqrt(coslat[j]) * lmask[j,i]
+
+           solver = Eof_xarray(ensarr[:,0:ngrid])
+
+        else:
+
+           solver = Eof_xarray(ensmat.rename({'ensemble': 'time'}), weights=wgts)
+
         pcout  = solver.pcs(npcs=3, pcscaling=1)
         pc1 = np.squeeze(pcout[:,eofn-1])
         pc1[:] = pc1[:] / np.std(pc1)
