@@ -477,8 +477,8 @@ def ComputeTCFields(datea, fhr, atcf, config):
                 lat  = ensmat.latitude.values
                 lon  = ensmat.longitude.values
                 dx, dy = mpcalc.lat_lon_grid_deltas(lon, lat, x_dim=-1, y_dim=-2, geod=None)
-                div = mpcalc.divergence(uwnd, vwnd, dx=dx, dy=dy)
-                ensmat[n,:,:] = grid_calc.calc_circ_llgrid(div, vortrad, lat, lon, eval(config['fields'].get('global','False')), \
+                vor = mpcalc.vorticity(uwnd, vwnd, dx=dx, dy=dy)
+                ensmat[n,:,:] = grid_calc.calc_circ_llgrid(vor, vortrad, lat, lon, eval(config['fields'].get('global','False')), \
                                                            len(lon), len(lat)) * 1.0e5
 
              ensmat.to_netcdf(outfile, encoding=dencode)
