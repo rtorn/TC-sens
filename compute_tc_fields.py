@@ -452,7 +452,7 @@ def ComputeTCFields(datea, fhr, atcf, config):
        else:
           vor_list = [850]
 
-       vortrad = float(config['fields'].get('vorticity_radius','100'))
+       vortrad = float(config['fields'].get('vorticity_radius','115'))
 
        for level in vor_list:
 
