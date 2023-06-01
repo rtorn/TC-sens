@@ -7,7 +7,14 @@ import numpy as np
 import datetime as dt
 import scipy.stats
 
-from SensPlotRoutines import plotVecSens, plotScalarSens, computeSens, writeSensFile
+import matplotlib
+from IPython.core.pylabtools import figsize, getfigs
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+from matplotlib import colors
+import cartopy.crs as ccrs
+
+from SensPlotRoutines import plotVecSens, plotScalarSens, computeSens, writeSensFile, addRangeRings, set_projection, background_map
 
 def ComputeSensitivity(datea, fhr, metname, atcf, config):
    '''
@@ -144,13 +151,13 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
    if mettype == 'trackeof':
       pltlist   = {'steer': True, 'h500': True, 'pv250': True, 'e700': False, \
-                   'e850': False, 'q58': False, 'ivt': False} 
+                   'e850': False, 'vor': False, 'q58': False, 'ivt': False} 
    elif mettype == 'pcpeof':
       pltlist   = {'steer': True, 'h500': True, 'pv250': True, 'e700': True, \
-                   'e850': True, 'q58': True, 'ivt': True}
+                   'e850': True, 'vor': False, 'q58': True, 'ivt': True}
    else:
       pltlist   = {'steer': True, 'h500': True, 'pv250': True, 'e700': True, \
-                   'e850': True, 'q58': True, 'ivt': False}
+                   'e850': True, 'vor': True, 'q58': True, 'ivt': False}
 
 
    #  Read the ensemble zonal and meridional steering wind, compute ensemble mean
@@ -168,18 +175,18 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       uens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
       lat = uens.latitude.values
       lon = uens.longitude.values
-      umea = np.mean(uens, axis=0)
-      umea.attrs['units'] = ds['ensemble_data'].attrs['units']
+      usteer = np.mean(uens, axis=0)
+      usteer.attrs['units'] = ds['ensemble_data'].attrs['units']
       uvar = np.var(uens, axis=0)
 
       ds = xr.open_dataset(vfile)
       vens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
-      vmea  = np.mean(vens, axis=0)
-      vmea.attrs['units'] = ds.ensemble_data.attrs['units']
+      vsteer  = np.mean(vens, axis=0)
+      vsteer.attrs['units'] = ds.ensemble_data.attrs['units']
       vvar = np.var(vens, axis=0)
 
       #  Compute sensitivity with respect to zonal steering wind
-      sens, sigv = computeSens(uens, umea, uvar, metric)
+      sens, sigv = computeSens(uens, usteer, uvar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(uvar[:,:])
 
       outdir = '{0}/{1}/sens/usteer'.format(config['figure_dir'],metname)
@@ -189,20 +196,20 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          if not os.path.isdir('{0}/{1}'.format(datea,bbnn)):
             os.makedirs('{0}/{1}'.format(datea,bbnn), exist_ok=True)
-         writeSensFile(lat, lon, fhr, umea, sens, sigv, '{0}/{1}/{0}_f{2}_usteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+         writeSensFile(lat, lon, fhr, usteer, sens, sigv, '{0}/{1}/{0}_f{2}_usteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
 
-      plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), plotDict)
+      plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0:
          outdir = '{0}/{1}/sens_sc/usteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
-         plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), stceDict)
+         plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), stceDict)
 
 
       #  Compute sensitivity with respect to meridional steering wind
-      sens, sigv = computeSens(vens, vmea, vvar, metric)
+      sens, sigv = computeSens(vens, vsteer, vvar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(vvar[:,:])
 
       outdir = '{0}/{1}/sens/vsteer'.format(config['figure_dir'],metname)
@@ -210,16 +217,16 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
          os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
-         writeSensFile(lat, lon, fhr, umea, sens, sigv, '{0}/{1}/{0}_f{2}_vsteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+         writeSensFile(lat, lon, fhr, usteer, sens, sigv, '{0}/{1}/{0}_f{2}_vsteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
 
-      plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), plotDict)
+      plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0:
          outdir = '{0}/{1}/sens_sc/vsteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
-         plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), stceDict)
+         plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), stceDict)
 
 
       #  Rotate wind into major axis direction, compute sensitivity to steering wind in that direction
@@ -229,6 +236,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       emea.attrs['units'] = ds.ensemble_data.attrs['units']
       sens, sigv = computeSens(wens, emea, evar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
+      masens = sens[:,:]
 
       outdir = '{0}/{1}/sens/masteer'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
@@ -237,14 +245,14 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_masteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
 
-      plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), plotDict)
+      plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0:
          outdir = '{0}/{1}/sens_sc/masteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
-         plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), stceDict)
+         plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), stceDict)
 
 
    #  Read steering flow streamfunction, compute sensitivity to that field, if the file exists
@@ -292,6 +300,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       sens, sigv = computeSens(ens, emea, evar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
+      svsens = sens[:,:]
 
       outdir = '{0}/{1}/sens/csteer'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
@@ -323,6 +332,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       sens, sigv = computeSens(ens, emea, evar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
+      pvsens = sens[:,:]
 
       outdir = '{0}/{1}/sens/pv250hPa'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
@@ -349,6 +359,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       sens, sigv = computeSens(ens, emea, evar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
+      ivsens = sens[:,:]
 
       outdir = '{0}/{1}/sens/ivt'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
@@ -459,6 +470,43 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_v925hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
 
 
+   plist = [850]
+   for pres in plist:
+
+      ensfile = '{0}/{1}_f{2}_vor{3}hPa_ens.nc'.format(config['work_dir'],datea,fhrt,pres)
+      if pltlist['vor'] and os.path.isfile(ensfile):
+
+         efile = nc.Dataset(ensfile)
+         lat   = efile.variables['latitude'][:]
+         lon   = efile.variables['longitude'][:]
+         ens   = np.squeeze(efile.variables['ensemble_data'][:])
+         emea  = np.mean(ens, axis=0)
+         emea.units = efile.variables['ensemble_data'].units
+         evar = np.var(ens, axis=0)
+
+         sens, sigv = computeSens(ens, emea, evar, metric)
+         sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
+
+         outdir = '{0}/{1}/sens/vor{2}hPa'.format(config['figure_dir'],metname,pres)
+         if not os.path.isdir(outdir):
+            os.makedirs(outdir, exist_ok=True)
+
+         if plotDict.get('output_sens', 'False')=='True':
+            writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{2}_f{3}_vor{4}hPa_sens.nc'.format(config['figure_dir'],metname,datea,fhrt,pres), plotDict)
+
+         plotDict['meanCntrs'] = np.array([-5.0, -4.0, -3.0, -2.0, -1.5, -1.0, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 15.0, 20.0])
+         plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_vor{3}hPa_sens.png'.format(outdir,datea,fhrt,pres), plotDict)
+
+
+         if e_cnt > 0:
+            outdir = '{0}/{1}/sens_sc/vor{2}hPa'.format(config['figure_dir'],metname,pres)
+            if not os.path.isdir(outdir):
+               os.makedirs(outdir, exist_ok=True)
+
+            stceDict['meanCntrs'] = plotDict['meanCntrs']
+            plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_vor{3}hPa_sens.png'.format(outdir,datea,fhrt,pres), stceDict)
+
+
    #  Read 500 hPa height, compute sensitivity to that field
    ensfile = '{0}/{1}_f{2}_h500hPa_ens.nc'.format(config['work_dir'],datea,fhrt)
    if pltlist['h500'] and os.path.isfile(ensfile):      
@@ -498,6 +546,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
  
       sens, sigv = computeSens(ens, emea, evar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
+      q58sens = sens[:,:]
 
       outdir = '{0}/{1}/sens/q500-850hPa'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
@@ -516,3 +565,90 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
          stceDict['meanCntrs'] = plotDict['meanCntrs']
          plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_q500-850hPa_sens.png'.format(outdir,datea,fhrt), stceDict)
+
+
+   if mettype == 'trackeof' and eval(config['sens'].get('plot_summary','False')):
+
+      outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
+      if not os.path.isdir(outdir):
+         os.makedirs(outdir)
+
+      pvsens[:,:] = 0.0
+      plotSummarySens(lat, lon, usteer, vsteer, masens, svsens, pvsens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
+
+   if mettype == 'wndeof' and eval(config['sens'].get('plot_summary','False')):
+
+      outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
+      if not os.path.isdir(outdir):
+         os.makedirs(outdir)
+
+      plotSummarySens(lat, lon, usteer, vsteer, masens, svsens, q58sens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
+
+   if mettype == 'pcpeof' and eval(config['sens'].get('plot_summary','False')):
+
+      outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
+      if not os.path.isdir(outdir):
+         os.makedirs(outdir)
+
+      stceDict['plotTitle'] = '{0} F{1} Steering Vort. (green), 500-850 Qvap (magenta), IVT (blue)'.format(datea,fhrt)
+      plotSummarySens(lat, lon, usteer, vsteer, svsens, q58sens, ivsens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
+
+
+
+
+def plotSummarySens(lat, lon, usteer, vsteer, f1sens, f2sens, f3sens, fileout, plotDict):
+   '''
+   Function that plots the sensitivity of a forecast metric to a scalar field, along
+   with the ensemble mean field in contours, and the statistical significance in 
+   stippling.  The user has the option to add customized elements to the plot, including
+   range rings, locations of rawinsondes/dropsondes, titles, etc.  These are all turned
+   on or off using the configuration file.
+
+   Attributes:
+       lat      (float):  Vector of latitude values
+       lon      (float):  Vector of longitude values
+       sens     (float):  2D array of sensitivity field
+       fileout (string):  Name of output figure in .png format
+       plotDict (dict.):  Dictionary that contains configuration options
+   '''
+
+   minLat = float(plotDict.get('min_lat', np.amin(lat)))
+   maxLat = float(plotDict.get('max_lat', np.amax(lat)))
+   minLon = float(plotDict.get('min_lon', np.amin(lon)))
+   maxLon = float(plotDict.get('max_lon', np.amax(lon)))
+
+   #  Create basic figure, including political boundaries and grid lines
+   fig = plt.figure(figsize=plotDict.get('figsize',(11,8.5)))
+
+   ax = background_map(plotDict.get('projection', 'PlateCarree'), minLon, maxLon, minLat, maxLat, plotDict)
+
+   plt1 = plt.contour(lon,lat,f1sens,[-0.4, 0.4], linewidths=2.0, colors='g',transform=ccrs.PlateCarree())
+   pltp = plt.contourf(lon,lat,f1sens,[-0.4, 0.4], hatches=['/', None, '/'], colors='none', \
+                        extend='both',transform=ccrs.PlateCarree())
+
+   for i, collection in enumerate(pltp.collections):
+      collection.set_edgecolor('g')
+
+   plt2 = plt.contour(lon,lat,f2sens,[-0.4, 0.4], linewidths=2.0, colors='m',transform=ccrs.PlateCarree())
+   pltp = plt.contourf(lon,lat,f2sens,[-0.4, 0.4], hatches=['/', None, '/'], colors='none', \
+                       extend='both',transform=ccrs.PlateCarree())
+   for i, collection in enumerate(pltp.collections):
+      collection.set_edgecolor('m')
+
+   plt3 = plt.contour(lon,lat,f3sens,[-0.4, 0.4], linewidths=2.0, colors='b', \
+                             zorder=10, transform=ccrs.PlateCarree())
+#   pltt = plt.contourf(lon,lat,tesens,[-0.3, 0.3], hatches=['\\', None, '\\'], colors='none', \
+#                       extend='both',transform=ccrs.PlateCarree())
+#   for i, collection in enumerate(pltt.collections):
+#      collection.set_edgecolor('b')
+
+   if 'plotTitle' in plotDict:
+      plt.title(plotDict['plotTitle'])
+
+   addRangeRings(plotDict['ring_center_lat'], plotDict['ring_center_lon'], lat, lon, plt, plotDict)
+
+#   addDrop(plotDict.get("dropsonde_file","null"), plt, plotDict)
+
+   plt.savefig(fileout,format='png',dpi=120,bbox_inches='tight')
+   plt.close(fig)
+
