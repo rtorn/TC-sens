@@ -1840,12 +1840,35 @@ class ComputeForecastMetrics:
            lat2 = float(conf['definition'].get('latitude_max'))
            lon1 = float(conf['definition'].get('longitude_min'))
            lon2 = float(conf['definition'].get('longitude_max'))
+           tcmet = eval(conf['definition'].get('tc_metric_box','False'))
+           tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',1.0))
            metname = conf['definition'].get('metric_name','wndeof')
            eofn = int(conf['definition'].get('eof_number',1))
            mask_land = eval(conf['definition'].get('land_mask_metric','False'))
         except:
            logging.warning('{0} does not exist.  Cannot compute wind EOF'.format(infile))
            return None
+
+        fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
+
+        if tcmet:
+
+           lat1 = 90.0
+           lat2 = -90.0
+           lon1 = 180.0
+           lon2 = -180.0
+           
+           for fhr in range(fhr1, fhr2+fint, fint):
+
+              lat, lon=self.atcf.ens_lat_lon_time(fhr)
+              for n in range(self.nens):
+                 if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+
+                    lat1 = np.min([lat1, lat[n]])
+                    lat2 = np.max([lat2, lat[n]])
+                    lon1 = np.min([lon1, lon[n]])
+                    lon2 = np.max([lon2, lon[n]])
+
 
         #  Read the total precipitation for the beginning of the window
         g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, self.config)
@@ -1857,7 +1880,6 @@ class ComputeForecastMetrics:
         ensmat = g1.create_ens_array('zonal_wind_10m', self.nens, vDict)
         ensmat[:,:,:] = 0.
 
-        fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
         for fhr in range(fhr1, fhr2+fint, fint):
 
            g1 = self.dpp.ReadGribFiles(self.datea_str, fhr, self.config)
@@ -1871,6 +1893,7 @@ class ComputeForecastMetrics:
            ensmat[:,:,:] = ensmat[:,:,:] * 1.94
 
         e_mean = np.mean(ensmat, axis=0)
+        e_plot = np.mean(ensmat, axis=0)
         ensmat = ensmat - e_mean
 
         #  Compute the EOF of the precipitation pattern and then the PCs
@@ -1926,7 +1949,7 @@ class ComputeForecastMetrics:
 
         mwnd = [0.0, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 100, 110]
         norm = matplotlib.colors.BoundaryNorm(mwnd,len(mwnd))
-        pltf = plt.contourf(ensmat.longitude.values,ensmat.latitude.values,e_mean,mwnd, \
+        pltf = plt.contourf(ensmat.longitude.values,ensmat.latitude.values,e_plot,mwnd, \
                              cmap=matplotlib.colors.ListedColormap(colorlist), alpha=0.5, antialiased=True, norm=norm, extend='max')
 
         wndfac = np.ceil(np.max(dwnd) / 5.0)
