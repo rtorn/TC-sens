@@ -14,7 +14,7 @@ import matplotlib.ticker as mticker
 from matplotlib import colors
 import cartopy.crs as ccrs
 
-from SensPlotRoutines import plotVecSens, plotScalarSens, computeSens, writeSensFile, addRangeRings, set_projection, background_map
+from SensPlotRoutines import plotVecSens, plotScalarSens, computeSens, addDrop, writeSensFile, addRangeRings, set_projection, background_map
 
 def ComputeSensitivity(datea, fhr, metname, atcf, config):
    '''
@@ -150,13 +150,13 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       jvec = 0.0
 
    if mettype == 'trackeof':
-      pltlist   = {'steer': True, 'h500': True, 'pv250': True, 'e700': False, \
+      pltlist   = {'steer': True, 'h500': True, 'pv250': True, 'pv850': False, 'e700': False, \
                    'e850': False, 'vor': False, 'q58': False, 'ivt': False} 
    elif mettype == 'pcpeof':
-      pltlist   = {'steer': True, 'h500': True, 'pv250': True, 'e700': True, \
+      pltlist   = {'steer': True, 'h500': True, 'pv250': True, 'pv850': True, 'e700': True, \
                    'e850': True, 'vor': False, 'q58': True, 'ivt': True}
    else:
-      pltlist   = {'steer': True, 'h500': True, 'pv250': True, 'e700': True, \
+      pltlist   = {'steer': True, 'h500': True, 'pv250': True, 'pv850': True, 'e700': True, \
                    'e850': True, 'vor': True, 'q58': True, 'ivt': False}
 
 
@@ -319,7 +319,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
 
    #  Read 250 hPa PV, compute sensitivity to that field, if the file exists
-   ensfile = '{0}/{1}_f{2}_pv250_ens.nc'.format(config['work_dir'],datea,fhrt)
+   ensfile = '{0}/{1}_f{2}_pv250hPa_ens.nc'.format(config['work_dir'],datea,fhrt)
    if pltlist['pv250'] and os.path.isfile(ensfile): 
       
       ds = xr.open_dataset(ensfile)
@@ -343,6 +343,44 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       plotDict['meanCntrs'] = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_pv250hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
+
+
+   #  Read 850 hPa PV, compute sensitivity to that field, if the file exists
+   ensfile = '{0}/{1}_f{2}_pv850hPa_ens.nc'.format(config['work_dir'],datea,fhrt)
+   if pltlist['pv850'] and os.path.isfile(ensfile):
+
+      ds = xr.open_dataset(ensfile)
+      ens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
+      lat = ens.latitude.values
+      lon = ens.longitude.values
+      emea  = np.mean(ens, axis=0)
+      emea.attrs['units'] = ds.ensemble_data.attrs['units']
+      evar = np.var(ens, axis=0)
+
+      sens, sigv = computeSens(ens, emea, evar, metric)
+      sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
+
+      outdir = '{0}/{1}/sens/pv850hPa'.format(config['figure_dir'],metname)
+      if not os.path.isdir(outdir):
+         os.makedirs(outdir)
+
+      if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
+         writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_pv850hPa_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+
+      plotDict['meanCntrs'] = np.array([0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0, 1.2, 1.4])
+      plotDict['clabel_fmt'] = "%2.1f"
+      plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_pv850hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
+      del plotDict['clabel_fmt']
+
+      if e_cnt > 0:
+         outdir = '{0}/{1}/sens_sc/pv850hPa'.format(config['figure_dir'],metname)
+         if not os.path.isdir(outdir):
+            os.makedirs(outdir, exist_ok=True)
+
+         stceDict['meanCntrs'] = plotDict['meanCntrs']
+         stceDict['clabel_fmt'] = "%2.1f" 
+         plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_pv850hPa_sens.png'.format(outdir,datea,fhrt), stceDict)
+         del stceDict['clabel_fmt']
 
 
    #  Read 850 hPa theta-e, compute sensitivity to that field
@@ -617,37 +655,47 @@ def plotSummarySens(lat, lon, usteer, vsteer, f1sens, f2sens, f3sens, fileout, p
    minLon = float(plotDict.get('min_lon', np.amin(lon)))
    maxLon = float(plotDict.get('max_lon', np.amax(lon)))
 
+   sencnt = float(plotDict.get('summary_contour', 0.36))
+
    #  Create basic figure, including political boundaries and grid lines
    fig = plt.figure(figsize=plotDict.get('figsize',(11,8.5)))
 
    ax = background_map(plotDict.get('projection', 'PlateCarree'), minLon, maxLon, minLat, maxLat, plotDict)
 
-   plt1 = plt.contour(lon,lat,f1sens,[-0.4, 0.4], linewidths=2.0, colors='g',transform=ccrs.PlateCarree())
-   pltp = plt.contourf(lon,lat,f1sens,[-0.4, 0.4], hatches=['/', None, '/'], colors='none', \
-                        extend='both',transform=ccrs.PlateCarree())
+#   plt1 = plt.contour(lon,lat,f1sens,[-sencnt, sencnt], linewidths=2.0, colors='g',transform=ccrs.PlateCarree())
+#   pltp = plt.contourf(lon,lat,f1sens,[-sencnt, sencnt], hatches=['/', None, '/'], colors='none', \
+#                        extend='both',transform=ccrs.PlateCarree())
+#   for i, collection in enumerate(pltp.collections):
+#      collection.set_edgecolor('g')
+   plt1 = plt.contourf(lon,lat,f1sens,[-sencnt, sencnt],extend='both',alpha=0.5,transform=ccrs.PlateCarree(), \
+                        cmap=matplotlib.colors.ListedColormap(("#00FF00","#FFFFFF","#00FF00")))
 
-   for i, collection in enumerate(pltp.collections):
-      collection.set_edgecolor('g')
+#   plt2 = plt.contour(lon,lat,f2sens,[-sencnt, sencnt], linewidths=2.0, colors='m',transform=ccrs.PlateCarree())
+#   pltp = plt.contourf(lon,lat,f2sens,[-sencnt, sencnt], hatches=[' \ ', None, ' \ '], colors='none', \
+#                       extend='both',transform=ccrs.PlateCarree())
+#   for i, collection in enumerate(pltp.collections):
+#      collection.set_edgecolor('m')
+   plt2 = plt.contourf(lon,lat,f2sens,[-sencnt, sencnt],extend='both',alpha=0.5,transform=ccrs.PlateCarree(), \
+                        cmap=matplotlib.colors.ListedColormap(("#FF00FF","#FFFFFF","#FF00FF")))
 
-   plt2 = plt.contour(lon,lat,f2sens,[-0.4, 0.4], linewidths=2.0, colors='m',transform=ccrs.PlateCarree())
-   pltp = plt.contourf(lon,lat,f2sens,[-0.4, 0.4], hatches=['/', None, '/'], colors='none', \
-                       extend='both',transform=ccrs.PlateCarree())
-   for i, collection in enumerate(pltp.collections):
-      collection.set_edgecolor('m')
-
-   plt3 = plt.contour(lon,lat,f3sens,[-0.4, 0.4], linewidths=2.0, colors='b', \
-                             zorder=10, transform=ccrs.PlateCarree())
-#   pltt = plt.contourf(lon,lat,tesens,[-0.3, 0.3], hatches=['\\', None, '\\'], colors='none', \
+#   plt3 = plt.contour(lon,lat,f3sens,[-sencnt, sencnt], linewidths=2.0, colors='b', \
+#                             zorder=10, transform=ccrs.PlateCarree())
+#   pltt = plt.contourf(lon,lat,f3sens,[-sencnt, sencnt], hatches=['|', None, '|'], colors='none', \
 #                       extend='both',transform=ccrs.PlateCarree())
 #   for i, collection in enumerate(pltt.collections):
 #      collection.set_edgecolor('b')
+   plt3 = plt.contourf(lon,lat,f3sens,[-sencnt, sencnt],extend='both',alpha=0.5,transform=ccrs.PlateCarree(), \
+                        cmap=matplotlib.colors.ListedColormap(("#0000FF","#FFFFFF","#0000FF")))
 
    if 'plotTitle' in plotDict:
       plt.title(plotDict['plotTitle'])
 
+#   if tcLat != -9999. and tcLon != -9999.:
+#      plt.plot(tcLon, tcLat, 'o', color='black', markersize=10)
+
    addRangeRings(plotDict['ring_center_lat'], plotDict['ring_center_lon'], lat, lon, plt, plotDict)
 
-#   addDrop(plotDict.get("dropsonde_file","null"), plt, plotDict)
+   addDrop(plotDict.get("dropsonde_file","null"), plt, plotDict)
 
    plt.savefig(fileout,format='png',dpi=120,bbox_inches='tight')
    plt.close(fig)
