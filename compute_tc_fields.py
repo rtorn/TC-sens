@@ -223,48 +223,66 @@ def ComputeTCFields(datea, fhr, atcf, config):
              logging.warning("  Obtaining {0} hPa height data from {1}".format(levstr,outfile))
 
 
-    #  Compute 250 hPa PV if the file does not exist
-    outfile='{0}/{1}_f{2}_pv250_ens.nc'.format(config['work_dir'],datea,fff)
-    if (not os.path.isfile(outfile) and config['fields'].get('calc_pv250hPa','True') == 'True'):
+    #  Compute the PV on pressure levels if the file does not exist
+    if config['fields'].get('calc_pv_pres','True') == 'True':
 
-       logging.warning("  Computing 250 hPa PV")
+       if 'pv_levels' in config['fields']:
+          pv_list = json.loads(config['fields'].get('pv_levels'))
+       else:
+          pv_list = (250, 850)
 
-       vDict = {'latitude': (lat1, lat2), 'longitude': (lon1, lon2), 'isobaricInhPa': (200, 300),
-                'description': '250 hPa Potential Vorticity', 'units': 'PVU', '_FillValue': -9999.}
-       vDict = g1.set_var_bounds('zonal_wind', vDict)
+       for level in pv_list:
 
-       ensmat = g1.create_ens_array('zonal_wind', nens, vDict)
+          levstr = '%0.3i' % int(level)
+          outfile='{0}/{1}_f{2}_pv{3}hPa_ens.nc'.format(config['work_dir'],datea,fff,levstr)
 
-       for n in range(nens):
+          if not os.path.isfile(outfile):
 
-          #  Read all the necessary files from file, smooth fields, so sensitivities are useful
-          tmpk = g1.read_grib_field('temperature', n, vDict) * units('K')
+             logging.warning('  Computing {0} hPa PV'.format(levstr))
 
-          lats = tmpk.latitude.values * units('degrees')
-          lons = tmpk.longitude.values * units('degrees')
-          pres = tmpk.isobaricInhPa.values * units('hPa')
+             pvec = g1.read_pressure_levels('temperature')
+             idx  = np.where(pvec==level)
+             lev1 = np.min(pvec[(int(idx[0])-1):(int(idx[0])+2)])
+             lev2 = np.max(pvec[(int(idx[0])-1):(int(idx[0])+2)])
 
-          tmpk = mpcalc.smooth_n_point(tmpk, 9, 4)
+             vDict = {'latitude': (lat1, lat2), 'longitude': (lon1, lon2), 'isobaricInhPa': (lev1, lev2),
+                      'description': '{0} hPa Potential Vorticity'.format(levstr), 'units': 'PVU', '_FillValue': -9999.}
+             vDict = g1.set_var_bounds('zonal_wind', vDict)
 
-          thta = mpcalc.potential_temperature(pres[:, None, None], tmpk)
+             ensmat = g1.create_ens_array('zonal_wind', g1.nens, vDict)
 
-          uwnd = g1.read_grib_field('zonal_wind', n, vDict) * units('m/s')
-          vwnd = g1.read_grib_field('meridional_wind', n, vDict) * units('m/s')
+             for n in range(g1.nens):
 
-          dx, dy = mpcalc.lat_lon_grid_deltas(lons, lats, x_dim=-1, y_dim=-2, geod=None)
+                #  Read all the necessary files from file, smooth fields, so sensitivities are useful
+                tmpk = g1.read_grib_field('temperature', n, vDict) * units('K')
 
-          #  Compute PV and place in ensemble array
-          pvout = mpcalc.potential_vorticity_baroclinic(thta, pres[:, None, None], uwnd, vwnd,
-                                           dx[None, :, :], dy[None, :, :], lats[None, :, None])
+                lats = ensmat.latitude.values * units('degrees')
+                lons = ensmat.longitude.values * units('degrees')
+                pres = tmpk.isobaricInhPa.values * units('hPa')
 
-          ensmat[n,:,:] = grid_calc.calc_circ_llgrid(pvout[np.where(pres == 250 * units('hPa'))[0],:,:], \
-                                                     300., lats, lons, False, len(lons), len(lats)) * 1.0e6
- 
-       ensmat.to_netcdf(outfile, encoding=dencode)
+                thta = mpcalc.potential_temperature(pres[:, None, None], tmpk)
 
-    elif os.path.isfile(outfile):
+                uwnd = g1.read_grib_field('zonal_wind', n, vDict) * units('m/s')
+                vwnd = g1.read_grib_field('meridional_wind', n, vDict) * units('m/s')
 
-       logging.warning("  Obtaining 250 hPa PV data from {0}".format(outfile))
+                dx, dy = mpcalc.lat_lon_grid_deltas(lons, lats, x_dim=-1, y_dim=-2, geod=None)
+                dx = np.maximum(dx, 1.0 * units('m'))
+
+                #  Compute PV and place in ensemble array
+                pvout = mpcalc.potential_vorticity_baroclinic(thta, pres[:, None, None], uwnd, vwnd,
+                                              dx[None, :, :], dy[None, :, :], lats[None, :, None])
+
+                ensmat[n,:,:] = grid_calc.calc_circ_llgrid(np.squeeze(pvout[np.where(pres == level * units('hPa'))[0],:,:]), \
+                                                           300., lats, lons, eval(config['fields'].get('global','False')), len(lons), len(lats)) * 1.0e6
+
+                del lats,lons,pres,thta,uwnd,vwnd,dx,dy,pvout
+
+             ensmat.to_netcdf(outfile, encoding=dencode)
+             del ensmat
+
+          elif os.path.isfile(outfile):
+
+             logging.warning('  Obtaining {0} hPa PV data from {1}'.format(level,outfile))
 
 
     #  Compute the equivalent potential temperature (if desired and file is missing)
