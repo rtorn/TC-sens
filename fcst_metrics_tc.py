@@ -33,12 +33,12 @@ def great_circle(lon1, lat1, lon2, lat2):
 
     dist = np.empty(lon2.shape)
 
-    lon1 = np.radians(lon1)
-    lat1 = np.radians(lat1) 
-    lon2[:] = np.radians(lon2[:])
-    lat2[:] = np.radians(lat2[:]) 
+    lon1a = np.radians(lon1)
+    lat1a = np.radians(lat1) 
+    lon2a = np.radians(lon2[:])
+    lat2a = np.radians(lat2[:]) 
 
-    dist[:] = np.sin(lat1) * np.sin(lat2[:]) + np.cos(lat1) * np.cos(lat2[:]) * np.cos(lon1 - lon2[:])
+    dist[:] = np.sin(lat1a) * np.sin(lat2a[:]) + np.cos(lat1a) * np.cos(lat2a[:]) * np.cos(lon1a - lon2a[:])
 
     return 6371. * np.arccos(np.minimum(dist,1.0))
 
@@ -1841,7 +1841,7 @@ class ComputeForecastMetrics:
            lon1 = float(conf['definition'].get('longitude_min'))
            lon2 = float(conf['definition'].get('longitude_max'))
            tcmet = eval(conf['definition'].get('tc_metric_box','False'))
-           tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',1.0))
+           tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',300.0))
            metname = conf['definition'].get('metric_name','wndeof')
            eofn = int(conf['definition'].get('eof_number',1))
            mask_land = eval(conf['definition'].get('land_mask_metric','False'))
@@ -1850,6 +1850,12 @@ class ComputeForecastMetrics:
            return None
 
         fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
+
+        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, self.config)
+
+        vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
+                 'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
+        vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
 
         if tcmet:
 
@@ -1869,14 +1875,42 @@ class ComputeForecastMetrics:
                     lon1 = np.min([lon1, lon[n]])
                     lon2 = np.max([lon2, lon[n]])
 
+           dlat = np.ceil(np.degrees(tcmet_buff / self.earth_radius))
+           dlon = np.ceil(np.degrees(tcmet_buff / (self.earth_radius*np.cos(np.radians(np.max(np.abs([lat1,lat2])))))))
 
-        #  Read the total precipitation for the beginning of the window
-        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, self.config)
+           lat1 = lat1 - dlat
+           lat2 = lat2 + dlat
+           lon1 = lon1 - dlon
+           lon2 = lon2 + dlon
 
-        vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
-                 'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
-        vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
+           vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
+                    'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
+           vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
 
+           gwght = g1.read_grib_field('zonal_wind_10m', 0, vDict).squeeze()
+           gwght[:,:] = 0.
+           lonarr, latarr = np.meshgrid(gwght.longitude.values,gwght.latitude.values)
+
+           for fhr in range(fhr1, fhr2+fint, fint):
+
+              lat, lon=self.atcf.ens_lat_lon_time(fhr)
+              for n in range(self.nens):
+                 if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+
+                    tcdist = great_circle(lon[n], lat[n], lonarr, latarr)
+                    gwght[:,:] = np.where(tcdist <= tcmet_buff, 1.0, gwght)
+
+        else:
+
+           vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
+                    'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
+           vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
+
+           gwght = g1.read_grib_field('zonal_wind_10m', 0, vDict).squeeze()
+           gwght[:,:] = 1.
+
+
+        #  Create the ensemble array
         ensmat = g1.create_ens_array('zonal_wind_10m', self.nens, vDict)
         ensmat[:,:,:] = 0.
 
@@ -1896,31 +1930,34 @@ class ComputeForecastMetrics:
         e_plot = np.mean(ensmat, axis=0)
         ensmat = ensmat - e_mean
 
-        #  Compute the EOF of the precipitation pattern and then the PCs
+        #  Compute the EOF of the wind pattern and then the PCs
         coslat = np.cos(np.deg2rad(ensmat.latitude.values)).clip(0., 1.)
-        wgts = np.sqrt(coslat)[..., np.newaxis]
+        nlat = len(ensmat[0,:,0])
+        nlon = len(ensmat[0,0,:])
+        ngrid = -1
+        ensarr = xr.DataArray(name='ensemble_data', data=np.zeros([self.nens, nlat*nlon]), \
+                               dims=['time', 'state'])        
 
         if mask_land:
 
            lmask = g1.read_static_field(self.config['metric'].get('static_fields_file'), 'landmask', vDict)
-           nlat = len(ensmat[0,:,0])
-           nlon = len(ensmat[0,0,:])
-           ngrid = -1
-           ensarr = xr.DataArray(name='ensemble_data', data=np.zeros([self.nens, nlat*nlon]), \
-                                   dims=['time', 'state'])
 
            for i in range(nlon):
               for j in range(nlat):
-                 if lmask[j,i] > 0.0:
+                 if lmask[j,i] > 0.0 and gwght[j,i] > 0.0:
                     ngrid = ngrid + 1
                     ensarr[:,ngrid] = ensmat[:,j,i] * np.sqrt(coslat[j]) * lmask[j,i]
 
-           solver = Eof_xarray(ensarr[:,0:ngrid])
-
         else:
 
-           solver = Eof_xarray(ensmat.rename({'ensemble': 'time'}), weights=wgts)
+           for i in range(nlon):
+              for j in range(nlat):
+                 if gwght[j,i] > 0.0:
+                    ngrid = ngrid + 1
+                    ensarr[:,ngrid] = ensmat[:,j,i] * np.sqrt(coslat[j])
 
+
+        solver = Eof_xarray(ensarr[:,0:ngrid])
         pcout  = solver.pcs(npcs=3, pcscaling=1)
         pc1 = np.squeeze(pcout[:,eofn-1])
         pc1[:] = pc1[:] / np.std(pc1)
@@ -1951,6 +1988,8 @@ class ComputeForecastMetrics:
         norm = matplotlib.colors.BoundaryNorm(mwnd,len(mwnd))
         pltf = plt.contourf(ensmat.longitude.values,ensmat.latitude.values,e_plot,mwnd, \
                              cmap=matplotlib.colors.ListedColormap(colorlist), alpha=0.5, antialiased=True, norm=norm, extend='max')
+
+        pltb = plt.contour(ensmat.longitude.values,ensmat.latitude.values,gwght,[0.5],linewidths=2.5, colors='0.4', zorder=10)
 
         wndfac = np.ceil(np.max(dwnd) / 5.0)
         cntrs = np.array([-5., -4., -3., -2., -1., 1., 2., 3., 4., 5]) * wndfac
