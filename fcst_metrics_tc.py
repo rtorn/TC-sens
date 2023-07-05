@@ -1834,13 +1834,13 @@ class ComputeForecastMetrics:
         try:
            conf = configparser.ConfigParser()
            conf.read(infile)
-           fhr1 = int(conf['definition'].get('forecast_hour1'))
-           fhr2 = int(conf['definition'].get('forecast_hour2'))
-           lat1 = float(conf['definition'].get('latitude_min'))
-           lat2 = float(conf['definition'].get('latitude_max'))
-           lon1 = float(conf['definition'].get('longitude_min'))
-           lon2 = float(conf['definition'].get('longitude_max'))
-           tcmet = eval(conf['definition'].get('tc_metric_box','False'))
+           fhr1 = int(conf['definition'].get('forecast_hour1','48'))
+           fhr2 = int(conf['definition'].get('forecast_hour2','96'))
+           lat1 = float(conf['definition'].get('latitude_min','-9999.'))
+           lat2 = float(conf['definition'].get('latitude_max','-9999.'))
+           lon1 = float(conf['definition'].get('longitude_min','-9999.'))
+           lon2 = float(conf['definition'].get('longitude_max','-9999.'))
+           tcmet = eval(conf['definition'].get('tc_metric_box','True'))
            tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',300.0))
            metname = conf['definition'].get('metric_name','wndeof')
            eofn = int(conf['definition'].get('eof_number',1))
@@ -1848,6 +1848,17 @@ class ComputeForecastMetrics:
         except:
            logging.warning('{0} does not exist.  Cannot compute wind EOF'.format(infile))
            return None
+
+        #  Check to make sure that bounds are defined correctly if not using TC-based metric.
+        if not tcmet
+
+           if lat1 < -90. or lat1 > 90. or lat2 < -90. or lat2 > 90. or \
+              lat1 < -180. or lat1 > 180. or lat2 < -180. or lat2 > 180.: 
+
+              logging.error('TC Wind Metric has fixed domain, but domain is not specified corrrectly')
+              logging.error('lat1 = {0}, lat2 = {1}, lat1 = {2}, lat2 = {3}'.format(lat1,lat2,lon1,lon2))
+              return None
+
 
         fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
 
