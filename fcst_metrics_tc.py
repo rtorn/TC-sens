@@ -1680,18 +1680,87 @@ class ComputeForecastMetrics:
         try:
            conf = configparser.ConfigParser()
            conf.read(infile)
-           fhr1 = int(conf['definition'].get('forecast_hour1'))
-           fhr2 = int(conf['definition'].get('forecast_hour2'))
+           fhr1 = int(conf['definition'].get('forecast_hour1','48'))
+           fhr2 = int(conf['definition'].get('forecast_hour2','120'))
            lat1 = float(conf['definition'].get('latitude_min'))
            lat2 = float(conf['definition'].get('latitude_max'))
            lon1 = float(conf['definition'].get('longitude_min'))
            lon2 = float(conf['definition'].get('longitude_max'))
+           tcmet = eval(conf['definition'].get('tc_metric_box','False'))
+           tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',300.0))
+           fhr_buff = int(conf['definition'].get('forecast_hour_buffer','24'))
            metname = conf['definition'].get('metric_name','pcpeof')
            eofn = int(conf['definition'].get('eof_number',1))
            mask_land = eval(conf['definition'].get('land_mask_metric','False'))
         except:
            logging.warning('{0} does not exist.  Cannot compute precip EOF'.format(infile))
            return None
+
+        fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
+
+        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, self.config)
+
+        if tcmet:
+
+           lat1 = 90.0
+           lat2 = -90.0
+           lon1 = 180.0
+           lon2 = -180.0
+
+           for fhr in range(fhr1, fhr2+fint, fint):
+
+              lat, lon=self.atcf.ens_lat_lon_time(fhr)
+              for n in range(self.nens):
+                 if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+
+                    lat1 = np.min([lat1, lat[n]])
+                    lat2 = np.max([lat2, lat[n]])
+                    lon1 = np.min([lon1, lon[n]])
+                    lon2 = np.max([lon2, lon[n]])
+
+           dlat = np.ceil(np.degrees(tcmet_buff / self.earth_radius))
+           dlon = np.ceil(np.degrees(tcmet_buff / (self.earth_radius*np.cos(np.radians(np.max(np.abs([lat1,lat2])))))))
+
+           lat1 = lat1 - dlat
+           lat2 = lat2 + dlat
+           lon1 = lon1 - dlon
+           lon2 = lon2 + dlon
+
+           #  Now figure out the 24 h after landfall, so we can set the appropriate 24 h period.
+           vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
+                 'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
+           vDict = g1.set_var_bounds('precipitation', vDict)
+           lmask = g1.read_static_field(self.config['metric'].get('static_fields_file'), 'landmask', vDict)
+
+           for fhr in range(fhr1, fhr2+fint, fint):
+
+              e_cnt = 0.0
+              m_lat = 0.0
+              m_lon = 0.0
+              lat, lon=self.atcf.ens_lat_lon_time(fhr)
+              for n in range(self.nens):
+                 if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+                    e_cnt = e_cnt + 1
+                    m_lat = m_lat + lat[n]
+                    m_lon = m_lon + lon[n]
+
+              if e_cnt >= 1.0:
+                 m_lon = m_lon / e_cnt
+                 m_lat = m_lat / e_cnt
+
+              c = np.abs(lmask.longitude.values-m_lon)
+              [xloc] = np.where(c == np.min(c))
+              c = np.abs(lmask.latitude.values-m_lat)
+              [yloc] = np.where(c == np.min(c))
+
+              if lmask[yloc,xloc] >= 0.7:
+
+                 fhr1 = fhr - 6
+                 fhr2 = fhr1 + fhr_buff
+                 break
+
+           print('Precip metric',fhr1,fhr2,lat1,lat2,lon1,lon2)
+
 
         #  Read the total precipitation for the beginning of the window
         g1 = self.dpp.ReadGribFiles(self.datea_str, fhr2, self.config)
@@ -1724,7 +1793,21 @@ class ComputeForecastMetrics:
         ensmat[:,:,:] = (ensmat[:,:,:] - ensmati[:,:,:]) * vscale * 24. / float(fhr2-fhr1)
 
         e_mean = np.mean(ensmat, axis=0)
+        e_std  = np.std(ensmat, axis=0)
         ensmat = ensmat - e_mean
+
+        if mask_land:
+
+           lmask = g1.read_static_field(self.config['metric'].get('static_fields_file'), 'landmask', vDict)
+
+        else:
+
+           lmask      = e_mean[:,:]
+           lmask[:,:] = 1.0
+
+
+        #  Find the location of precipitation max. and then the area over which this exceeds a certain threshold
+
 
         #  Compute the EOF of the precipitation pattern and then the PCs
         coslat = np.cos(np.deg2rad(ensmat.latitude.values)).clip(0., 1.)
@@ -1850,7 +1933,7 @@ class ComputeForecastMetrics:
            return None
 
         #  Check to make sure that bounds are defined correctly if not using TC-based metric.
-        if not tcmet
+        if not tcmet:
 
            if lat1 < -90. or lat1 > 90. or lat2 < -90. or lat2 > 90. or \
               lat1 < -180. or lat1 > 180. or lat2 < -180. or lat2 > 180.: 
