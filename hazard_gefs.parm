@@ -16,11 +16,10 @@ atcf_dir=https://ftp.nhc.noaa.gov/atcf/aid_public
 best_dir=https://ftp.nhc.noaa.gov/atcf/btk
 model_dir=/tornlab_rit/torn/ecmwf
 
-#work_dir=/rt11/torn/JHT/test_gefs
-work_dir=/rt11/torn/JHT/work_gefs
+work_dir=/rt11/torn/JHT/test_gefs
 output_dir=/rt11/torn/JHT/output_gefs
 script_dir=/home11/staff/torn/JHT-python
-figure_dir=/home11/staff/torn/html/HOT/GEFS
+figure_dir=/home11/staff/torn/html/HOT-alt/GEFS
 outgrid_dir=/home11/staff/torn/html/JHT/ECMWF/grid
 log_dir=/rt11/torn/JHT/log_gefs
 
@@ -37,6 +36,7 @@ precip_hour_2=[72]
 
 [metric]
 metric_hours=[0, 96]
+static_fields_file=/rt11/torn/JHT/landmask_gefs_0p2.grb2
 int_track_fhr1=24
 int_track_fhr2=120
 track_eof_member_frac = 0.3 
@@ -62,6 +62,7 @@ min_lat=0.0
 max_lat=65.0
 min_lon=-180.0
 max_lon=-10.0
+multiprocessor=True
 
 [sens]
 metrics=f120_intmajtrack, f096_intmslp, f120_pcpeof, f096_ke_10m
@@ -84,3 +85,5 @@ ring_values=[300,600,900,1200]
 output_sens=False
 nhc_sens=True
 zero_non_sig_sens=True
+plot_summary=True
+multiprocessor=True
