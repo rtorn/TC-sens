@@ -362,7 +362,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/pv850hPa'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_pv850hPa_sens.nc'.format(datea,bbnn,fhrt), plotDict)
