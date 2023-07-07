@@ -1802,7 +1802,7 @@ class ComputeForecastMetrics:
 
         else:
 
-           lmask      = e_mean[:,:]
+           lmask      = np.ones(e_mean.shape)
            lmask[:,:] = 1.0
 
 
