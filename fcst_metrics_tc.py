@@ -1689,6 +1689,8 @@ class ComputeForecastMetrics:
            tcmet = eval(conf['definition'].get('tc_metric_box','False'))
            tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',300.0))
            fhr_buff = int(conf['definition'].get('forecast_hour_buffer','24'))
+           pcpmin = float(conf['definition'].get('precipitation_minimum','12.7'))
+           lmaskmin = float(conf['definition'].get('land_mask_minimum','0.2'))
            metname = conf['definition'].get('metric_name','pcpeof')
            eofn = int(conf['definition'].get('eof_number',1))
            mask_land = eval(conf['definition'].get('land_mask_metric','False'))
@@ -1753,11 +1755,11 @@ class ComputeForecastMetrics:
               c = np.abs(lmask.latitude.values-m_lat)
               [yloc] = np.where(c == np.min(c))
 
-              if lmask[yloc,xloc] >= 0.7:
+#              if lmask[yloc,xloc] >= 0.7:
 
-                 fhr1 = fhr - 6
-                 fhr2 = fhr1 + fhr_buff
-                 break
+#                 fhr1 = fhr - 6
+#                 fhr2 = fhr1 + fhr_buff
+#                 break
 
            print('Precip metric',fhr1,fhr2,lat1,lat2,lon1,lon2)
 
@@ -1805,34 +1807,141 @@ class ComputeForecastMetrics:
            lmask      = np.ones(e_mean.shape)
            lmask[:,:] = 1.0
 
-
-        #  Find the location of precipitation max. and then the area over which this exceeds a certain threshold
-
-
         #  Compute the EOF of the precipitation pattern and then the PCs
         coslat = np.cos(np.deg2rad(ensmat.latitude.values)).clip(0., 1.)
         wgts = np.sqrt(coslat)[..., np.newaxis]
 
-        if mask_land:
+        #  Find the location of precipitation max. and then the area over which this exceeds a certain threshold
+        if tcmet:        
 
-           lmask = g1.read_static_field(self.config['metric'].get('static_fields_file'), 'landmask', vDict)
-           nlat = len(ensmat[0,:,0])
-           nlon = len(ensmat[0,0,:])
+           nlon  = len(e_mean.longitude.values)
+           nlat  = len(e_mean.latitude.values)
+
+           # Search for maximum in ensemble precipitation SD 
+           estd_mask = e_std.values[:,:] * lmask.values[:,:]
+
+           stdmax = estd_mask.max()
+           maxloc = np.where(estd_mask == stdmax)
+           icen   = int(maxloc[1])
+           jcen   = int(maxloc[0])
+
+           fmgrid = e_mean.copy()
+           fmgrid[:,:] = 0.0
+           fmgrid[jcen,icen] = 1.0
+
+           #  Progressively expand domain to find area
+           for r in range(1,max(nlon,nlat)):
+
+              i1 = max(icen-r,0)
+              i2 = min(icen+r,nlon-1)
+              j1 = max(jcen-r,0)
+              j2 = min(jcen+r,nlat-1)
+              nring = 0
+       
+              #  Evaluate points at top and bottom of square
+              for i in range(i1+1, i2):
+                 k1 = np.maximum(i-1,0)
+                 k2 = np.minimum(i+2,nlon)
+                 if e_mean[j1,i] >= pcpmin and lmask[j1,i] >= lmaskmin and np.any(fmgrid[j1+1,k1:k2] > 0.):
+                    nring = nring + 1
+                    fmgrid[j1,i] = 1.
+                 if e_mean[j2,i] >= pcpmin and lmask[j2,i] >= lmaskmin and np.any(fmgrid[j2-1,k1:k2] > 0.):
+                    nring = nring + 1
+                    fmgrid[j2,i] = 1.
+
+              #  Evaluate left and right sides of square
+              for j in range(j1+1, j2):
+                 k1 = np.maximum(j-1,0)
+                 k2 = np.minimum(j+2,nlat)
+                 if e_mean[j,i1] >= pcpmin and lmask[j,i1] >= lmaskmin and np.any(fmgrid[k1:k2,i1+1] > 0.):
+                    nring = nring + 1
+                    fmgrid[j,i1] = 1.
+                 if e_mean[j,i2] >= pcpmin and lmask[j,i2] >= lmaskmin and np.any(fmgrid[k1:k2,i2-1] > 0.):
+                    nring = nring + 1
+                    fmgrid[j,i2] = 1.
+
+              #  Evaluate the four corners of the square
+              if e_mean[j1,i1] >= pcpmin and lmask[j1,i1] >= lmaskmin and np.any(fmgrid[j1:(j1+2),i1:(i1+2)] > 0.):
+                 nring = nring + 1
+                 fmgrid[j1,i1] = 1.
+
+              if e_mean[j1,i2] >= pcpmin and lmask[j1,i2] >= lmaskmin and np.any(fmgrid[j1:(j1+2),(i2-1):(i2+1)] > 0.):
+                 nring = nring + 1
+                 fmgrid[j1,i2] = 1.
+
+              if e_mean[j2,i1] >= pcpmin and lmask[j2,i1] >= lmaskmin and np.any(fmgrid[(j2-1):(j2+1),i1:(i1+2)] > 0.):
+                 nring = nring + 1
+                 fmgrid[j2,i1] = 1.
+
+              if e_mean[j2,i2] >= pcpmin and lmask[j2,i2] >= lmaskmin and np.any(fmgrid[(j2-1):(j2+1),(i2-1):(i2+1)] > 0.): 
+                 nring = nring + 1
+                 fmgrid[j2,i2] = 1.
+
+              #  Stop searching if no points were added
+              if nring == 0:
+                 break
+
+           #  Find the grid bounds for the precipitation domain (for plotting purposes)
+           i1 = nlon-1
+           i2 = 0
+           j1 = nlat-1
+           j2 = 0
+           for i in range(nlon):
+              for j in range(nlat):
+                 if fmgrid[j,i] > 0.0:
+                    i1 = np.minimum(i,i1)
+                    i2 = np.maximum(i,i2)
+                    j1 = np.minimum(j,j1)
+                    j2 = np.maximum(j,j2)
+
+           i1 = np.maximum(i1-5,0)
+           i2 = np.minimum(i2+5,nlon-1)
+           j1 = np.maximum(j1-5,0)
+           j2 = np.minimum(j2+5,nlat-1)
+
            ngrid = -1
            ensarr = xr.DataArray(name='ensemble_data', data=np.zeros([self.nens, nlat*nlon]), \
                                    dims=['time', 'state'])
 
            for i in range(nlon):
-              for j in range(nlat): 
-                 if lmask[j,i] > 0.0:
+              for j in range(nlat):
+                 if fmgrid[j,i] > 0.0:
                     ngrid = ngrid + 1
-                    ensarr[:,ngrid] = ensmat[:,j,i] * np.sqrt(coslat[j]) * lmask[j,i]
+                    ensarr[:,ngrid] = ensmat[:,j,i] * np.sqrt(coslat[j])
 
            solver = Eof_xarray(ensarr[:,0:ngrid])
 
+           #  Restrict domain for plotting purposes
+           lon1 = ensmat.longitude.values[i1]
+           lon2 = ensmat.longitude.values[i2]
+           lat1 = ensmat.latitude.values[j1]
+           lat2 = ensmat.latitude.values[j2]
+
+           ensmat = ensmat.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2))
+           fmgrid = fmgrid.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2))
+           e_mean = e_mean.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2))
+
         else:
 
-           solver = Eof_xarray(ensmat.rename({'ensemble': 'time'}), weights=wgts)
+           if mask_land:
+
+              nlat = len(ensmat[0,:,0])
+              nlon = len(ensmat[0,0,:])
+              ngrid = -1
+              ensarr = xr.DataArray(name='ensemble_data', data=np.zeros([self.nens, nlat*nlon]), \
+                                      dims=['time', 'state'])
+
+              for i in range(nlon):
+                 for j in range(nlat): 
+                    if lmask[j,i] > 0.0:
+                       ngrid = ngrid + 1
+                       ensarr[:,ngrid] = ensmat[:,j,i] * np.sqrt(coslat[j]) * lmask[j,i]
+
+              solver = Eof_xarray(ensarr[:,0:ngrid])
+
+           else:
+
+              solver = Eof_xarray(ensmat.rename({'ensemble': 'time'}), weights=wgts)
 
         pcout  = solver.pcs(npcs=eofn, pcscaling=1)
         pc1 = np.squeeze(pcout[:,-1])
@@ -1864,7 +1973,10 @@ class ComputeForecastMetrics:
         norm = matplotlib.colors.BoundaryNorm(mpcp,len(mpcp))
         pltf = plt.contourf(ensmat.longitude.values,ensmat.latitude.values,e_mean,mpcp, \
                              cmap=matplotlib.colors.ListedColormap(colorlist), norm=norm, alpha=0.5, antialiased=True, extend='max')
-        
+       
+        if tcmet: 
+           pltb = plt.contour(ensmat.longitude.values,ensmat.latitude.values,fmgrid,[0.5],linewidths=2.5, colors='0.4', zorder=10)
+
         pcpfac = np.ceil(np.max(dpcp) / 5.0)
         cntrs = np.array([-5., -4., -3., -2., -1., 1., 2., 3., 4., 5]) * pcpfac
         pltm = plt.contour(ensmat.longitude.values,ensmat.latitude.values,dpcp,cntrs,linewidths=1.5, colors='k', zorder=10)
