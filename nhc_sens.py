@@ -529,8 +529,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
-         if plotDict.get('output_sens', 'False')=='True':
-            writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{2}_f{3}_vor{4}hPa_sens.nc'.format(config['figure_dir'],metname,datea,fhrt,pres), plotDict)
+#         if plotDict.get('output_sens', 'False')=='True' and 'intmajtrack' in metname:
+#            writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_vor{3}hPa_sens.nc'.format(datea,bbnn,fhrt,pres), plotDict)
 
          plotDict['meanCntrs'] = np.array([-5.0, -4.0, -3.0, -2.0, -1.5, -1.0, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 15.0, 20.0])
          plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_vor{3}hPa_sens.png'.format(outdir,datea,fhrt,pres), plotDict)
