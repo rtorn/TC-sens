@@ -1686,7 +1686,7 @@ class ComputeForecastMetrics:
            lat2 = float(conf['definition'].get('latitude_max'))
            lon1 = float(conf['definition'].get('longitude_min'))
            lon2 = float(conf['definition'].get('longitude_max'))
-           tcmet = eval(conf['definition'].get('tc_metric_box','True'))
+           tcmet = eval(conf['definition'].get('tc_metric_box','False'))
            tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',300.0))
            fhr_buff = int(conf['definition'].get('forecast_hour_buffer','24'))
            pcpmin = float(conf['definition'].get('precipitation_minimum','12.7'))
@@ -2119,7 +2119,7 @@ class ComputeForecastMetrics:
            gwght[:,:] = 1.
 
         logging.warning('  Wind EOF Metric:')
-        logging warning('    Forecast Hours: {0}-{1}',fhr1,fhr2)
+        logging.warning('    Forecast Hours: {0}-{1}'.format(fhr1,fhr2))
 
         #  Create the ensemble array
         ensmat = g1.create_ens_array('zonal_wind_10m', self.nens, vDict)
