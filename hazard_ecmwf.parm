@@ -65,7 +65,6 @@ max_lon=-10.0
 multiprocessor=True
 
 [sens]
-metrics=f120_intmajtrack, f096_intmslp, f120_pcpeof, f096_ke_10m
 #min_lat=8.0
 #max_lat=65.0
 #min_lon=-140.0
