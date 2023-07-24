@@ -609,7 +609,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       pvsens[:,:] = 0.0
       plotSummarySens(lat, lon, usteer, vsteer, masens, svsens, pvsens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
@@ -618,7 +618,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       plotSummarySens(lat, lon, usteer, vsteer, masens, svsens, q58sens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
 
@@ -626,7 +626,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
-         os.makedirs(outdir)
+         os.makedirs(outdir, exist_ok=True)
 
       stceDict['plotTitle'] = '{0} F{1} Steering Vort. (green), 500-850 Qvap (magenta), IVT (blue)'.format(datea,fhrt)
       plotSummarySens(lat, lon, usteer, vsteer, svsens, q58sens, ivsens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
