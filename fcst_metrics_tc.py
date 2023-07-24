@@ -1686,7 +1686,7 @@ class ComputeForecastMetrics:
            lat2 = float(conf['definition'].get('latitude_max'))
            lon1 = float(conf['definition'].get('longitude_min'))
            lon2 = float(conf['definition'].get('longitude_max'))
-           tcmet = eval(conf['definition'].get('tc_metric_box','False'))
+           tcmet = eval(conf['definition'].get('tc_metric_box','True'))
            tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',300.0))
            fhr_buff = int(conf['definition'].get('forecast_hour_buffer','24'))
            pcpmin = float(conf['definition'].get('precipitation_minimum','12.7'))
@@ -2024,25 +2024,34 @@ class ComputeForecastMetrics:
         along with the wind speed perturbation that is consistent with the first EOF. 
         '''
 
+        fhr1 = int(self.config['metric'].get('speed_eof_hour_init','48'))
+        fhr2 = int(self.config['metric'].get('speed_eof_hour_final','96'))
+        fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
+        tcmet_buff = float(self.config['metric'].get('speed_eof_box_buffer',300.0))
+        mask_land = eval(self.config['metric'].get('land_mask_metric','False'))
+        tcmet = True
+        metname = 'wndeof'
+        eofn = 1
+
         infile = self.config['metric'].get('wind_metric_file').format(self.datea_str,self.storm)
 
         try:
            conf = configparser.ConfigParser()
            conf.read(infile)
-           fhr1 = int(conf['definition'].get('forecast_hour1','48'))
-           fhr2 = int(conf['definition'].get('forecast_hour2','96'))
+           fhr1 = int(conf['definition'].get('forecast_hour1',fhr1))
+           fhr2 = int(conf['definition'].get('forecast_hour2',fhr2))
            lat1 = float(conf['definition'].get('latitude_min','-9999.'))
            lat2 = float(conf['definition'].get('latitude_max','-9999.'))
            lon1 = float(conf['definition'].get('longitude_min','-9999.'))
            lon2 = float(conf['definition'].get('longitude_max','-9999.'))
-           tcmet = eval(conf['definition'].get('tc_metric_box','True'))
-           tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',300.0))
-           metname = conf['definition'].get('metric_name','wndeof')
-           eofn = int(conf['definition'].get('eof_number',1))
-           mask_land = eval(conf['definition'].get('land_mask_metric','False'))
+           tcmet = eval(conf['definition'].get('tc_metric_box',tcmet))
+           tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',tcmet_buff))
+           metname = conf['definition'].get('metric_name',metname)
+           eofn = int(conf['definition'].get('eof_number',eofn))
+           mask_land = eval(conf['definition'].get('land_mask_metric',mask_land))
         except:
-           logging.warning('{0} does not exist.  Cannot compute wind EOF'.format(infile))
-           return None
+           logging.warning('  {0} does not exist.  Using default/namelist values'.format(infile))
+
 
         #  Check to make sure that bounds are defined correctly if not using TC-based metric.
         if not tcmet:
@@ -2055,13 +2064,7 @@ class ComputeForecastMetrics:
               return None
 
 
-        fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
-
         g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, self.config)
-
-        vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
-                 'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
-        vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
 
         if tcmet:
 
@@ -2115,6 +2118,8 @@ class ComputeForecastMetrics:
            gwght = g1.read_grib_field('zonal_wind_10m', 0, vDict).squeeze()
            gwght[:,:] = 1.
 
+        logging.warning('  Wind EOF Metric:')
+        logging warning('    Forecast Hours: {0}-{1}',fhr1,fhr2)
 
         #  Create the ensemble array
         ensmat = g1.create_ens_array('zonal_wind_10m', self.nens, vDict)
