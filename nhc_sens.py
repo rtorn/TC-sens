@@ -611,8 +611,9 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
-      pvsens[:,:] = 0.0
-      plotSummarySens(lat, lon, usteer, vsteer, masens, svsens, pvsens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
+      stceDict['plotTitle'] = '{0} track, init: {1}, valid: {2} (Hour: {3})'.format(config['storm'],datea,datef,fhrt)
+      stceDict['plotLegend'] = ['Major Steering Wind', 'Steering Vorticity']
+      plotSummarySens(lat, lon, usteer, vsteer, masens, svsens, np.array([]), '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
 
    if mettype == 'wndeof' and eval(config['sens'].get('plot_summary','False')):
 
@@ -620,6 +621,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
+      stceDict['plotTitle'] = '{0} max. wind, init: {1}, valid: {2} (Hour: {3})'.format(config['storm'],datea,datef,fhrt)
+      stceDict['plotLegend'] = ['Major Steering Wind', 'Steering Vorticity', '500-850 hPa qvap']
       plotSummarySens(lat, lon, usteer, vsteer, masens, svsens, q58sens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
 
    if mettype == 'pcpeof' and eval(config['sens'].get('plot_summary','False')):
@@ -628,10 +631,9 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
-      stceDict['plotTitle'] = '{0} F{1} Steering Vort. (green), 500-850 Qvap (magenta), IVT (blue)'.format(datea,fhrt)
+      stceDict['plotTitle'] = '{0} precip., init: {1}, valid: {2} (Hour: {3})'.format(config['storm'],datea,datef,fhrt)
+      stceDict['plotLegend'] = ['Steering Vorticity', '500-850 hPa qvap', 'IVT']
       plotSummarySens(lat, lon, usteer, vsteer, svsens, q58sens, ivsens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
-
-
 
 
 def plotSummarySens(lat, lon, usteer, vsteer, f1sens, f2sens, f3sens, fileout, plotDict):
@@ -684,11 +686,25 @@ def plotSummarySens(lat, lon, usteer, vsteer, f1sens, f2sens, f3sens, fileout, p
 #                       extend='both',transform=ccrs.PlateCarree())
 #   for i, collection in enumerate(pltt.collections):
 #      collection.set_edgecolor('b')
-   plt3 = plt.contourf(lon,lat,f3sens,[-sencnt, sencnt],extend='both',alpha=0.5,transform=ccrs.PlateCarree(), \
-                        cmap=matplotlib.colors.ListedColormap(("#0000FF","#FFFFFF","#0000FF")))
+   if f3sens.any():
+      plt3 = plt.contourf(lon,lat,f3sens,[-sencnt, sencnt],extend='both',alpha=0.5,transform=ccrs.PlateCarree(), \
+                           cmap=matplotlib.colors.ListedColormap(("#0000FF","#FFFFFF","#0000FF")))
 
    if 'plotTitle' in plotDict:
       plt.title(plotDict['plotTitle'])
+
+   if 'plotLegend' in plotDict:
+      lamin = float(plotDict.get('min_lat', np.amin(lat)))
+      lamax = float(plotDict.get('max_lat', np.amax(lat)))
+      lomin = float(plotDict.get('min_lon', np.amin(lon)))
+      lomax = float(plotDict.get('max_lon', np.amax(lon)))
+      plt.text(lomin, lamin-(lamax-lamin)*0.06, plotDict['plotLegend'][0], color='#00FF00', fontsize=14, \
+                   horizontalalignment='left', transform=ccrs.PlateCarree())
+      plt.text((lomin+lomax)*0.5, lamin-(lamax-lamin)*0.06, plotDict['plotLegend'][1], color='#FF00FF', fontsize=14, \
+                   horizontalalignment='center', transform=ccrs.PlateCarree())
+      if len(plotDict['plotLegend']) > 2:
+         plt.text(lomax, lamin-(lamax-lamin)*0.06, plotDict['plotLegend'][2], color='#0000FF', fontsize=14, \
+                   horizontalalignment='right', transform=ccrs.PlateCarree())
 
 #   if tcLat != -9999. and tcLon != -9999.:
 #      plt.plot(tcLon, tcLat, 'o', color='black', markersize=10)
