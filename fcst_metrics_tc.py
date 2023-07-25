@@ -2084,6 +2084,12 @@ class ComputeForecastMetrics:
                     lon1 = np.min([lon1, lon[n]])
                     lon2 = np.max([lon2, lon[n]])
 
+           #  Bail out of the metric if no TC positions are present for the time window.
+           if lat1 >= 90.0 or lat2 <= -90.0:
+
+              logging.error('  TC Wind Metric does not have any TC positions in the time window.  Skipping metric.')
+              return None
+
            dlat = np.ceil(np.degrees(tcmet_buff / self.earth_radius))
            dlon = np.ceil(np.degrees(tcmet_buff / (self.earth_radius*np.cos(np.radians(np.max(np.abs([lat1,lat2])))))))
 
