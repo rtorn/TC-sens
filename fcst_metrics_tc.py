@@ -1675,30 +1675,49 @@ class ComputeForecastMetrics:
         along with the precipitation perturbation that is consistent with the first EOF. 
         '''
 
+        fhr1 = int(self.config['metric'].get('precip_eof_hour_init','48'))
+        fhr2 = int(self.config['metric'].get('precip_eof_hour_final','120'))
+        fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
+        tcmet_buff = float(self.config['metric'].get('precip_eof_box_buffer',300.0))
+        pcpmin = float(self.config['metric'].get('precipitation_minimum','12.7'))
+        lmaskmin = float(self.config['metric'].get('land_mask_minimum','0.2'))
+        mask_land = eval(self.config['metric'].get('land_mask_precip_metric','True'))
+        tcmet = True
+        metname = 'pcpeof'
+        eofn = 1
+
         infile = self.config['metric'].get('precip_metric_file').format(self.datea_str,self.storm)
 
         try:
            conf = configparser.ConfigParser()
            conf.read(infile)
-           fhr1 = int(conf['definition'].get('forecast_hour1','48'))
-           fhr2 = int(conf['definition'].get('forecast_hour2','120'))
-           lat1 = float(conf['definition'].get('latitude_min'))
-           lat2 = float(conf['definition'].get('latitude_max'))
-           lon1 = float(conf['definition'].get('longitude_min'))
-           lon2 = float(conf['definition'].get('longitude_max'))
-           tcmet = eval(conf['definition'].get('tc_metric_box','False'))
-           tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',300.0))
+           fhr1 = int(conf['definition'].get('forecast_hour1',fhr1))
+           fhr2 = int(conf['definition'].get('forecast_hour2',fhr2))
+           lat1 = float(conf['definition'].get('latitude_min','-9999.'))
+           lat2 = float(conf['definition'].get('latitude_max','-9999.'))
+           lon1 = float(conf['definition'].get('longitude_min','-9999.'))
+           lon2 = float(conf['definition'].get('longitude_max','-9999.'))
+           tcmet = eval(conf['definition'].get('tc_metric_box',tcmet))
+           tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',tcmet_buff))
            fhr_buff = int(conf['definition'].get('forecast_hour_buffer','24'))
-           pcpmin = float(conf['definition'].get('precipitation_minimum','12.7'))
-           lmaskmin = float(conf['definition'].get('land_mask_minimum','0.2'))
-           metname = conf['definition'].get('metric_name','pcpeof')
-           eofn = int(conf['definition'].get('eof_number',1))
-           mask_land = eval(conf['definition'].get('land_mask_metric','False'))
+           pcpmin = float(conf['definition'].get('precipitation_minimum',pcpmin))
+           lmaskmin = float(conf['definition'].get('land_mask_minimum',lmaskmin))
+           metname = conf['definition'].get('metric_name',metname)
+           eofn = int(conf['definition'].get('eof_number',eofn))
+           mask_land = eval(conf['definition'].get('land_mask_metric',mask_land))
         except:
-           logging.warning('{0} does not exist.  Cannot compute precip EOF'.format(infile))
-           return None
+           logging.warning('  {0} does not exist.  Using default/namelist values'.format(infile))
 
-        fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
+
+        #  Check to make sure that bounds are defined correctly if not using TC-based metric.
+        if not tcmet:
+
+           if lat1 < -90. or lat1 > 90. or lat2 < -90. or lat2 > 90. or \
+              lat1 < -180. or lat1 > 180. or lat2 < -180. or lat2 > 180.:
+
+              logging.error('  TC Precipitation Metric has fixed domain, but domain is not specified corrrectly')
+              logging.error('  lat1 = {0}, lat2 = {1}, lat1 = {2}, lat2 = {3}'.format(lat1,lat2,lon1,lon2))
+              return None
 
         g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, self.config)
 
@@ -1719,6 +1738,12 @@ class ComputeForecastMetrics:
                     lat2 = np.max([lat2, lat[n]])
                     lon1 = np.min([lon1, lon[n]])
                     lon2 = np.max([lon2, lon[n]])
+
+           #  Bail out of the metric if no TC positions are present for the time window.
+           if lat1 >= 90.0 or lat2 <= -90.0:
+
+              logging.error('  TC Precipitation Metric does not have any TC positions in the time window.  Skipping metric.')
+              return None
 
            dlat = np.ceil(np.degrees(tcmet_buff / self.earth_radius))
            dlon = np.ceil(np.degrees(tcmet_buff / (self.earth_radius*np.cos(np.radians(np.max(np.abs([lat1,lat2])))))))
@@ -1761,7 +1786,7 @@ class ComputeForecastMetrics:
 #                 fhr2 = fhr1 + fhr_buff
 #                 break
 
-           print('Precip metric',fhr1,fhr2,lat1,lat2,lon1,lon2)
+           logging.warning('  Precipitation Metric Bounds, Hours: {0}-{1}, Lat: {2}-{3}, Lon: {4}-{5}'.format(fhr1,fhr2,lat1,lat2,lon1,lon2))
 
 
         #  Read the total precipitation for the beginning of the window
@@ -1880,6 +1905,11 @@ class ComputeForecastMetrics:
               #  Stop searching if no points were added
               if nring == 0:
                  break
+
+           #  Evaluate whether the forecast metric grid has enough land points
+           if np.sum(fmgrid) <= 1.0:
+              logging.error('  TC precipitation metric does not have any land points.  Skipping metric.')
+              return None 
 
            #  Find the grid bounds for the precipitation domain (for plotting purposes)
            i1 = nlon-1
@@ -2059,8 +2089,8 @@ class ComputeForecastMetrics:
            if lat1 < -90. or lat1 > 90. or lat2 < -90. or lat2 > 90. or \
               lat1 < -180. or lat1 > 180. or lat2 < -180. or lat2 > 180.: 
 
-              logging.error('TC Wind Metric has fixed domain, but domain is not specified corrrectly')
-              logging.error('lat1 = {0}, lat2 = {1}, lat1 = {2}, lat2 = {3}'.format(lat1,lat2,lon1,lon2))
+              logging.error('  TC Wind Metric has fixed domain, but domain is not specified corrrectly')
+              logging.error('  lat1 = {0}, lat2 = {1}, lat1 = {2}, lat2 = {3}'.format(lat1,lat2,lon1,lon2))
               return None
 
 
