@@ -514,16 +514,19 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       ensfile = '{0}/{1}_f{2}_vor{3}hPa_ens.nc'.format(config['work_dir'],datea,fhrt,pres)
       if pltlist['vor'] and os.path.isfile(ensfile):
 
-         efile = nc.Dataset(ensfile)
-         lat   = efile.variables['latitude'][:]
-         lon   = efile.variables['longitude'][:]
-         ens   = np.squeeze(efile.variables['ensemble_data'][:])
+         ds = xr.open_dataset(ensfile)
+         ens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
+         lat = ens.latitude.values
+         lon = ens.longitude.values
          emea  = np.mean(ens, axis=0)
-         emea.units = efile.variables['ensemble_data'].units
+         emea.attrs['units'] = ds.ensemble_data.attrs['units']
          evar = np.var(ens, axis=0)
 
          sens, sigv = computeSens(ens, emea, evar, metric)
          sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
+
+         if pres == 850:
+            vo850sens = sens[:,:]
 
          outdir = '{0}/{1}/sens/vor{2}hPa'.format(config['figure_dir'],metname,pres)
          if not os.path.isdir(outdir):
@@ -614,6 +617,16 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       stceDict['plotTitle'] = '{0} track, init: {1}, valid: {2} (Hour: {3})'.format(config['storm'],datea,datef,fhrt)
       stceDict['plotLegend'] = ['Major Steering Wind', 'Steering Vorticity']
       plotSummarySens(lat, lon, usteer, vsteer, masens, svsens, np.array([]), '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
+
+   if mettype == 'inteneof' and eval(config['sens'].get('plot_summary','False')):
+
+      outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
+      if not os.path.isdir(outdir):
+         os.makedirs(outdir, exist_ok=True)
+
+      stceDict['plotTitle'] = '{0} max. wind, init: {1}, valid: {2} (Hour: {3})'.format(config['storm'],datea,datef,fhrt)
+      stceDict['plotLegend'] = ['850 hPa vorticity', 'Steering Vorticity', '500-850 hPa qvap']
+      plotSummarySens(lat, lon, usteer, vsteer, vo850sens, svsens, q58sens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
 
    if mettype == 'wndeof' and eval(config['sens'].get('plot_summary','False')):
 
