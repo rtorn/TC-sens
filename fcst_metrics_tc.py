@@ -1843,6 +1843,10 @@ class ComputeForecastMetrics:
            nlat  = len(e_mean.latitude.values)
 
            # Search for maximum in ensemble precipitation SD 
+           if np.max(lmask) < lmaskmin:
+              logging.error('  TC precipitation metric does not have any land points.  Skipping metric.')
+              return None
+
            estd_mask = e_std.values[:,:] * lmask.values[:,:]
 
            stdmax = estd_mask.max()
