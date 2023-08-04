@@ -35,7 +35,6 @@ precip_hour_1=[48]
 precip_hour_2=[72]
 
 [metric]
-metric_hours=[0, 96]
 static_fields_file=/rt11/torn/JHT/landmask_gefs_0p2.grb2
 int_track_fhr1=24
 int_track_fhr2=120

@@ -64,8 +64,12 @@ class ComputeForecastMetrics:
         self.missing = -9999.
         self.deg2km = self.earth_radius * np.radians(1)
 
+        if 'metric_hours' in config['metric']:
+           fhr_list = json.loads(config['metric'].get('metric_hours'))
+        else:
+           fhr_list = []
+
         self.nens = int(len(atcf.atcf_files))
-        fhr_list = json.loads(config['metric']['metric_hours'])
         self.datea_str = datea
         self.datea = dt.datetime.strptime(datea, '%Y%m%d%H')
         self.datea_s = self.datea.strftime("%m%d%H%M")
@@ -94,6 +98,7 @@ class ComputeForecastMetrics:
  
             #  Go to the next potential forecast hour if there are not enough members
             if e_cnt <= 1:
+               logging.warning('    forecast hour does not have any members; moving on.')
                continue
 
             #  Calculate the distance along major axis and along/across track distance
@@ -145,8 +150,8 @@ class ComputeForecastMetrics:
 
             #out_stat = list(np.zeros(4))
             #out_stat[0] = np.sqrt(vmaj) / (np.sqrt(vmin) + 0.0001)
-            f_max_miss = 0.6667
-            f_missing = len(np.where(fore_met_maj == 0.0)[0]) / len(fore_met_maj)
+#            f_max_miss = 0.6667
+#            f_missing = len(np.where(fore_met_maj == 0.0)[0]) / len(fore_met_maj)
 #            if f_missing < f_max_miss or self.fhr <= 0.0:
 #               if self.fhr > 0.0:
 #                  f_met0 = self.forecast_maj_track_0['data_vars']["fore_met_init"]['data']
@@ -316,6 +321,8 @@ class ComputeForecastMetrics:
                                                               'attrs': {'description': 'TC minor axis track error',
                                                                         'units': 'km', '_FillValue': self.missing},
                                                               'data': f_met_min}}}
+
+        self.metlist.append('f{0}_majtrack'.format(self.fff))
 
         return forecast_maj_track, forecast_min_track
 
@@ -499,6 +506,8 @@ class ComputeForecastMetrics:
 
         xr.Dataset.from_dict(f_met_slp_nc).to_netcdf(
                 self.outdir + "/{1}_f{0}_minslp.nc".format(self.fff, str(self.datea_str)), encoding={'fore_met_init': {'dtype': 'float32'}})
+
+        self.metlist.append('f{0}_minslp'.format(self.fff))
 
         if self.config['metric'].get('kinetic_energy_metric', 'True') == 'True':
 

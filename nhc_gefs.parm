@@ -26,7 +26,6 @@ intfile=intensity.png
 forecast_hour_max=144
 
 [metric]
-metric_hours=[0, 48]
 int_track_fhr1=24
 #int_track_fhr2=120
 int_track_fhr2=72
