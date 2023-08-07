@@ -608,9 +608,12 @@ class ComputeForecastMetrics:
            m_lon_t = 0.0
            for n in range(self.nens):
               if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+                
                 e_cnt = e_cnt + 1
-                m_lat_t = m_lat_t + lat[n]
+                if self.storm[-1] == "e" or self.storm[-1] == "c":
+                   lon[n] = (lon[n] + 360.) % 360.
                 m_lon_t = m_lon_t + lon[n]
+                m_lat_t = m_lat_t + lat[n]
 
            #  Only consider this time if a critical number of members are present
            if e_cnt >= ens_min:
@@ -655,9 +658,12 @@ class ComputeForecastMetrics:
            e_cnt = 0
            for n in range(self.nens):
               if ens_lat[n,t] != self.atcf.missing and ens_lon[n,t] != self.atcf.missing:
+
                 e_cnt = e_cnt + 1
-                m_lat[t] = m_lat[t] + ens_lat[n,t]
+                if self.storm[-1] == "e" or self.storm[-1] == "c":
+                   ens_lon[n,t] = (ens_lon[n,t] + 360.) % 360.
                 m_lon[t] = m_lon[t] + ens_lon[n,t]
+                m_lat[t] = m_lat[t] + ens_lat[n,t]
 
            if e_cnt > 2:
 
@@ -807,15 +813,15 @@ class ComputeForecastMetrics:
             y_ens = []
             e_cnt = 0
             for n in range(self.nens):
-              if ens_lat[n,t] != self.atcf.missing or ens_lon[n,t] != self.atcf.missing:
+              if ens_lat[n,t] != self.atcf.missing and ens_lon[n,t] != self.atcf.missing:
                 e_cnt = e_cnt + 1
                 y_ens.append(ens_lat[n,t])
                 x_ens.append(ens_lon[n,t])
 
             if e_cnt > 2:
-              ax.scatter(x_ens, y_ens, s=2, color=ellcol[color_index], zorder=20)
-              ax.scatter(m_lon[t], m_lat[t], s=14, color=ellcol[color_index], zorder=20)
-              ax.scatter(p_lon[t], p_lat[t], s=14, color=ellcol[color_index], zorder=20)
+              ax.scatter(x_ens, y_ens, s=2, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
+              ax.scatter(m_lon[t], m_lat[t], s=14, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
+              ax.scatter(p_lon[t], p_lat[t], s=14, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
             else:
               break
 
@@ -1110,8 +1116,10 @@ class ComputeForecastMetrics:
            for n in range(self.nens):
               if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
                 e_cnt = e_cnt + 1
-                m_lat_t = m_lat_t + lat[n]
+                if self.storm[-1] == "e" or self.storm[-1] == "c":
+                   lon[n] = (lon[n] + 360.) % 360.
                 m_lon_t = m_lon_t + lon[n]
+                m_lat_t = m_lat_t + lat[n]
                 m_slp_t = m_slp_t + slp[n]
 
            #  Only consider this time if a critical number of members are present
@@ -1171,8 +1179,10 @@ class ComputeForecastMetrics:
            for n in range(self.nens):
               if ens_lat[n,t] != self.atcf.missing and ens_lon[n,t] != self.atcf.missing:
                 e_cnt = e_cnt + 1
-                m_lat[t] = m_lat[t] + ens_lat[n,t]
+                if self.storm[-1] == "e" or self.storm[-1] == "c":
+                   ens_lon[n,t] = (ens_lon[n,t] + 360.) % 360.
                 m_lon[t] = m_lon[t] + ens_lon[n,t]
+                m_lat[t] = m_lat[t] + ens_lat[n,t]
                 m_slp[t] = m_slp[t] + ens_slp[n,t]
 
            if e_cnt > 2:
@@ -1728,20 +1738,31 @@ class ComputeForecastMetrics:
               logging.error('  lat1 = {0}, lat2 = {1}, lat1 = {2}, lat2 = {3}'.format(lat1,lat2,lon1,lon2))
               return None
 
-        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, self.config)
+        confgrib = self.config.copy()
+        if self.storm[-1] == "e" or self.storm[-1] == "c":
+           confgrib['flip_lon'] = 'True'
+
+        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, confgrib)
 
         if tcmet:
 
            lat1 = 90.0
            lat2 = -90.0
-           lon1 = 180.0
-           lon2 = -180.0
+           if self.storm[-1] == "e" or self.storm[-1] == "c":
+              lon1 = 360.0
+              lon2 = 0.0
+           else:
+              lon1 = 180.0
+              lon2 = -180.0
 
            for fhr in range(fhr1, fhr2+fint, fint):
 
               lat, lon=self.atcf.ens_lat_lon_time(fhr)
               for n in range(self.nens):
                  if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+
+                    if self.storm[-1] == "e" or self.storm[-1] == "c":
+                       lon[n] = (lon[n] + 360.) % 360.
 
                     lat1 = np.min([lat1, lat[n]])
                     lat2 = np.max([lat2, lat[n]])
@@ -1762,9 +1783,15 @@ class ComputeForecastMetrics:
            lon1 = lon1 - dlon
            lon2 = lon2 + dlon
 
+           #  TEMPORARY HACK TO DEAL WITH LAST POINT NOT BEING READ BY ECCODES
+           if self.storm[-1] == "e" or self.storm[-1] == "c":
+              lon1 = np.max([lon1, 180.0])
+
            #  Now figure out the 24 h after landfall, so we can set the appropriate 24 h period.
            vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
                  'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
+           if self.storm[-1] == "e" or self.storm[-1] == "c":
+              vDict['flip_lon'] = 'True'
            vDict = g1.set_var_bounds('precipitation', vDict)
            lmask = g1.read_static_field(self.config['metric'].get('static_fields_file'), 'landmask', vDict)
 
@@ -1777,8 +1804,10 @@ class ComputeForecastMetrics:
               for n in range(self.nens):
                  if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
                     e_cnt = e_cnt + 1
-                    m_lat = m_lat + lat[n]
+                    if self.storm[-1] == "e" or self.storm[-1] == "c":
+                       lon[n] = (lon[n] + 360.) % 360.
                     m_lon = m_lon + lon[n]
+                    m_lat = m_lat + lat[n]
 
               if e_cnt >= 1.0:
                  m_lon = m_lon / e_cnt
@@ -1799,7 +1828,7 @@ class ComputeForecastMetrics:
 
 
         #  Read the total precipitation for the beginning of the window
-        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr2, self.config)
+        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr2, confgrib)
 
         vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
                  'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
@@ -1811,7 +1840,7 @@ class ComputeForecastMetrics:
            eout = g1.read_grib_field('precipitation', n, vDict).squeeze()
            ensmat[n,:,:] = eout[:,:]
 
-        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, self.config)
+        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, confgrib)
         if fhr1 > 0.:
            ensmati = g1.create_ens_array('precipitation', self.nens, vDict)
            for n in range(self.nens):
@@ -1834,6 +1863,8 @@ class ComputeForecastMetrics:
 
         if mask_land:
 
+           if self.storm[-1] == "e" or self.storm[-1] == "c":
+              vDict['flip_lon'] = 'True'
            lmask = g1.read_static_field(self.config['metric'].get('static_fields_file'), 'landmask', vDict)
 
         else:
@@ -1852,7 +1883,7 @@ class ComputeForecastMetrics:
            nlat  = len(e_mean.latitude.values)
 
            # Search for maximum in ensemble precipitation SD 
-           if np.max(lmask) < lmaskmin:
+           if np.amax(lmask.values) < lmaskmin:
               logging.error('  TC precipitation metric does not have any land points.  Skipping metric.')
               return None
 
@@ -1921,7 +1952,7 @@ class ComputeForecastMetrics:
 
            #  Evaluate whether the forecast metric grid has enough land points
            if np.sum(fmgrid) <= 1.0:
-              logging.error('  TC precipitation metric does not have any land points.  Skipping metric.')
+              logging.error('  TC precipitation metric does not have any land points after doing search.  Skipping metric.')
               return None 
 
            #  Find the grid bounds for the precipitation domain (for plotting purposes)
@@ -2106,21 +2137,31 @@ class ComputeForecastMetrics:
               logging.error('  lat1 = {0}, lat2 = {1}, lat1 = {2}, lat2 = {3}'.format(lat1,lat2,lon1,lon2))
               return None
 
+        confgrib = self.config.copy()
+        if self.storm[-1] == "e" or self.storm[-1] == "c":
+           confgrib['flip_lon'] = 'True'
 
-        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, self.config)
+        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, confgrib)
 
         if tcmet:
 
            lat1 = 90.0
            lat2 = -90.0
-           lon1 = 180.0
-           lon2 = -180.0
+           if self.storm[-1] == "e" or self.storm[-1] == "c":
+              lon1 = 360.0
+              lon2 = 0.0
+           else:
+              lon1 = 180.0
+              lon2 = -180.0
            
            for fhr in range(fhr1, fhr2+fint, fint):
 
               lat, lon=self.atcf.ens_lat_lon_time(fhr)
               for n in range(self.nens):
                  if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+
+                    if self.storm[-1] == "e" or self.storm[-1] == "c":
+                       lon[n] = (lon[n] + 360.) % 360.
 
                     lat1 = np.min([lat1, lat[n]])
                     lat2 = np.max([lat2, lat[n]])
@@ -2141,8 +2182,13 @@ class ComputeForecastMetrics:
            lon1 = lon1 - dlon
            lon2 = lon2 + dlon
 
+           #  TEMPORARY HACK
+           if self.storm[-1] == "e" or self.storm[-1] == "c":
+              lon1 = np.max([lon1, 180.0])
+
            vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
                     'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
+
            vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
 
            gwght = g1.read_grib_field('zonal_wind_10m', 0, vDict).squeeze()
@@ -2154,6 +2200,9 @@ class ComputeForecastMetrics:
               lat, lon=self.atcf.ens_lat_lon_time(fhr)
               for n in range(self.nens):
                  if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+
+                    if self.storm[-1] == "e" or self.storm[-1] == "c":
+                       lon[n] = (lon[n] + 360.) % 360.
 
                     tcdist = great_circle(lon[n], lat[n], lonarr, latarr)
                     gwght[:,:] = np.where(tcdist <= tcmet_buff, 1.0, gwght)
@@ -2176,7 +2225,7 @@ class ComputeForecastMetrics:
 
         for fhr in range(fhr1, fhr2+fint, fint):
 
-           g1 = self.dpp.ReadGribFiles(self.datea_str, fhr, self.config)
+           g1 = self.dpp.ReadGribFiles(self.datea_str, fhr, confgrib)
 
            for n in range(self.nens):
               uwnd = g1.read_grib_field('zonal_wind_10m', n, vDict).squeeze()
@@ -2200,6 +2249,8 @@ class ComputeForecastMetrics:
 
         if mask_land:
 
+           if self.storm[-1] == "e" or self.storm[-1] == "c":
+              vDict['flip_lon'] = 'True'
            lmask = g1.read_static_field(self.config['metric'].get('static_fields_file'), 'landmask', vDict)
 
            for i in range(nlon):
@@ -2246,14 +2297,14 @@ class ComputeForecastMetrics:
 
         mwnd = [0.0, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 100, 110]
         norm = matplotlib.colors.BoundaryNorm(mwnd,len(mwnd))
-        pltf = plt.contourf(ensmat.longitude.values,ensmat.latitude.values,e_plot,mwnd, \
-                             cmap=matplotlib.colors.ListedColormap(colorlist), alpha=0.5, antialiased=True, norm=norm, extend='max')
+        pltf = plt.contourf(ensmat.longitude.values,ensmat.latitude.values,e_plot,mwnd,norm=norm,extend='max', \
+                             cmap=matplotlib.colors.ListedColormap(colorlist), alpha=0.5, antialiased=True, transform=ccrs.PlateCarree())
 
-        pltb = plt.contour(ensmat.longitude.values,ensmat.latitude.values,gwght,[0.5],linewidths=2.5, colors='0.4', zorder=10)
+        pltb = plt.contour(ensmat.longitude.values,ensmat.latitude.values,gwght,[0.5],linewidths=2.5, colors='0.4', zorder=10, transform=ccrs.PlateCarree())
 
         wndfac = np.ceil(np.max(dwnd) / 5.0)
         cntrs = np.array([-5., -4., -3., -2., -1., 1., 2., 3., 4., 5]) * wndfac
-        pltm = plt.contour(ensmat.longitude.values,ensmat.latitude.values,dwnd,cntrs,linewidths=1.5, colors='k', zorder=10)
+        pltm = plt.contour(ensmat.longitude.values,ensmat.latitude.values,dwnd,cntrs,linewidths=1.5, colors='k', zorder=10, transform=ccrs.PlateCarree())
 
         #  Add colorbar to the plot
         cbar = plt.colorbar(pltf, fraction=0.12, aspect=45., pad=0.04, orientation='horizontal', ticks=mwnd)

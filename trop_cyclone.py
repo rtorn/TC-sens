@@ -52,6 +52,10 @@ def plot_ens_tc_track(atcf, storm, datea, config):
     for n in range(nens):
       for t in range(ntimes):
         if all_lat[n,t] != atcf.missing and all_lon[n,t] != atcf.missing:
+
+          if storm[-1] == "e" or storm[-1] == "c":
+             all_lon[n,t] = (all_lon[n,t] + 360.) % 360.
+
           minLat = min([minLat, all_lat[n,t]])
           maxLat = max([maxLat, all_lat[n,t]])
           minLon = min([minLon, all_lon[n,t]])
@@ -97,9 +101,11 @@ def plot_ens_tc_track(atcf, storm, datea, config):
           if lat != atcf.missing:
 
              fhrbest.append(fhr)
-             bestlat.append(lat)
+             if storm[-1] == "e" or storm[-1] == "c":
+                lon = (lon + 360.) % 360.
              bestlon.append(lon)
-
+             bestlat.append(lat)
+          
        ax.plot(bestlon, bestlat, linestyle='-', color='black', zorder=1, transform=ccrs.PlateCarree()) 
         
 
