@@ -61,15 +61,27 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
    for n in range(nens):
       if elat[n] != atcf.missing and elon[n] != atcf.missing:
          e_cnt = e_cnt + 1.0
+
+         if config['storm'][-1] == "e" or config['storm'][-1] == "c":
+            elon[n] = (elon[n] + 360.) % 360.
+
          m_lat = m_lat + elat[n]
          m_lon = m_lon + elon[n]
 
    if e_cnt > 0.0:
       plotDict['tcLat'] = m_lat / e_cnt
       plotDict['tcLon'] = m_lon / e_cnt
+
+      tc_in_dom = True
+      if config['storm'][-1] == "e" or config['storm'][-1] == "c":
+         m_lon = (((m_lon / e_cnt) + 180.) % 360.) - 180.
+         plotDict['tcLon'] = m_lon
+         if m_lon > 0.0:
+            tc_in_dom = False
    else:
       plotDict['tcLat'] = 0.
-      plotDict['tcLon'] = 0. 
+      plotDict['tcLon'] = 0.
+      tc_in_dom = False 
 
    plotDict['plotTitle'] = '{0} F{1}'.format(datea,fhrt)
    plotDict['fileTitle'] = 'TEST JHT-Torn ECMWF Sensitivity'
@@ -113,6 +125,9 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       lat2 = config['max_lat']
       lon1 = config['min_lon']
       lon2 = config['max_lon']
+
+   if stceDict['min_lon'] < lon1 or stceDict['max_lon'] > lon2:
+      tc_in_dom = False
 
    datea_dt = dt.datetime.strptime(datea, '%Y%m%d%H')
    datef_dt = datea_dt + dt.timedelta(hours=fhr)
@@ -200,7 +215,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
-      if e_cnt > 0:
+      if e_cnt > 0 and tc_in_dom:
          outdir = '{0}/{1}/sens_sc/usteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
@@ -221,7 +236,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
-      if e_cnt > 0:
+      if e_cnt > 0 and tc_in_dom:
          outdir = '{0}/{1}/sens_sc/vsteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
@@ -247,7 +262,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
-      if e_cnt > 0:
+      if e_cnt > 0 and tc_in_dom:
          outdir = '{0}/{1}/sens_sc/masteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
@@ -277,7 +292,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotDict['meanCntrs'] = np.arange(-100, 104, 4)
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_ssteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
-      if e_cnt > 0:
+      if e_cnt > 0 and tc_in_dom:
          outdir = '{0}/{1}/sens_sc/ssteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
@@ -309,7 +324,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotDict['meanCntrs'] = np.array([-5.0, -4.0, -3.0, -2.0, -1.5, -1.0, -0.5, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0])
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_csteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
-      if e_cnt > 0:
+      if e_cnt > 0 and tc_in_dom:
          outdir = '{0}/{1}/sens_sc/csteer'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
@@ -372,7 +387,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_pv850hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
       del plotDict['clabel_fmt']
 
-      if e_cnt > 0:
+      if e_cnt > 0 and tc_in_dom:
          outdir = '{0}/{1}/sens_sc/pv850hPa'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
@@ -409,7 +424,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotDict['meanCntrs'] = np.array([200., 400., 600., 800., 1000., 1300., 1600.])
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_ivt_sens.png'.format(outdir,datea,fhrt), plotDict)
 
-      if e_cnt > 0:
+      if e_cnt > 0 and tc_in_dom:
          outdir = '{0}/{1}/sens_sc/ivt'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
@@ -539,7 +554,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
          plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_vor{3}hPa_sens.png'.format(outdir,datea,fhrt,pres), plotDict)
 
 
-         if e_cnt > 0:
+         if e_cnt > 0 and tc_in_dom:
             outdir = '{0}/{1}/sens_sc/vor{2}hPa'.format(config['figure_dir'],metname,pres)
             if not os.path.isdir(outdir):
                os.makedirs(outdir, exist_ok=True)
@@ -599,7 +614,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotDict['meanCntrs'] = np.arange(4, 40, 4)
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_q500-850hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
 
-      if e_cnt > 0:
+      if e_cnt > 0 and tc_in_dom:
          outdir = '{0}/{1}/sens_sc/q500-850hPa'.format(config['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
