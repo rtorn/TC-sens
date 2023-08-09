@@ -101,6 +101,10 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
    stceDict['barb_interval']=3
    stceDict["figsize"]=(8.5,11)
 
+   if config['storm'][-1] == "e" or config['storm'][-1] == "c":
+      if stceDict['min_lon'] < -180.0 or stceDict['max_lon'] > 0.0:
+         tc_in_dom = False
+
    if 'min_lat' in config['sens']:
       lat1 = np.minimum(float(plotDict['min_lat']), stceDict['min_lat'])
       lat2 = np.maximum(float(plotDict['max_lat']), stceDict['max_lat'])
@@ -125,9 +129,6 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       lat2 = config['max_lat']
       lon1 = config['min_lon']
       lon2 = config['max_lon']
-
-   if stceDict['min_lon'] < lon1 or stceDict['max_lon'] > lon2:
-      tc_in_dom = False
 
    datea_dt = dt.datetime.strptime(datea, '%Y%m%d%H')
    datef_dt = datea_dt + dt.timedelta(hours=fhr)
@@ -623,7 +624,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
          plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_q500-850hPa_sens.png'.format(outdir,datea,fhrt), stceDict)
 
 
-   if mettype == 'trackeof' and eval(config['sens'].get('plot_summary','False')):
+   if mettype == 'trackeof' and eval(config['sens'].get('plot_summary','False')) and tc_in_dom:
 
       outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
@@ -633,7 +634,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       stceDict['plotLegend'] = ['Major Steering Wind', 'Steering Vorticity']
       plotSummarySens(lat, lon, usteer, vsteer, masens, svsens, np.array([]), '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
 
-   if mettype == 'inteneof' and eval(config['sens'].get('plot_summary','False')):
+   if mettype == 'inteneof' and eval(config['sens'].get('plot_summary','False')) and tc_in_dom:
 
       outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
@@ -643,7 +644,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       stceDict['plotLegend'] = ['850 hPa vorticity', 'Steering Vorticity', '500-850 hPa qvap']
       plotSummarySens(lat, lon, usteer, vsteer, vo850sens, svsens, q58sens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
 
-   if mettype == 'wndeof' and eval(config['sens'].get('plot_summary','False')):
+   if mettype == 'wndeof' and eval(config['sens'].get('plot_summary','False')) and tc_in_dom:
 
       outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
@@ -653,7 +654,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       stceDict['plotLegend'] = ['Major Steering Wind', 'Steering Vorticity', '500-850 hPa qvap']
       plotSummarySens(lat, lon, usteer, vsteer, masens, svsens, q58sens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
 
-   if mettype == 'pcpeof' and eval(config['sens'].get('plot_summary','False')):
+   if mettype == 'pcpeof' and eval(config['sens'].get('plot_summary','False')) and tc_in_dom:
 
       outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
       if not os.path.isdir(outdir):
