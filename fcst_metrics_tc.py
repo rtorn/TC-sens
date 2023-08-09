@@ -1828,34 +1828,62 @@ class ComputeForecastMetrics:
 
 
         #  Read the total precipitation for the beginning of the window
-        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr2, confgrib)
-
-        vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
-                 'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
-        vDict = g1.set_var_bounds('precipitation', vDict)
-
-        ensmat = g1.create_ens_array('precipitation', self.nens, vDict)
-
-        for n in range(self.nens):
-           eout = g1.read_grib_field('precipitation', n, vDict).squeeze()
-           ensmat[n,:,:] = eout[:,:]
-
         g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, confgrib)
-        if fhr1 > 0.:
-           ensmati = g1.create_ens_array('precipitation', self.nens, vDict)
-           for n in range(self.nens):
-              ensmati[n,:,:] = np.squeeze(g1.read_grib_field('precipitation', n, vDict))
-        else:
-           ensmati = np.zeros(ensmat.shape)
-           ensmati[:,:,:] = 0.
 
-        if eout.units == "m":
-           vscale = 1000.
+        if g1.has_total_precip:
+
+           vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
+                    'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
+           vDict = g1.set_var_bounds('precipitation', vDict)
+
+           g2 = self.dpp.ReadGribFiles(self.datea_str, fhr2, confgrib)
+
+           ensmat = g2.create_ens_array('precipitation', g2.nens, vDict)
+
+           for n in range(self.nens):
+              ens1 = np.squeeze(g1.read_grib_field('precipitation', n, vDict))
+              ens2 = np.squeeze(g2.read_grib_field('precipitation', n, vDict))
+              ensmat[n,:,:] = ens2[:,:] - ens1[:,:]
+
+           if hasattr(ens2, 'units'):
+              if ens2.units == "m":
+                 vscale = 1000.
+              else:
+                 vscale = 1.
+           else:
+              vscale = 1.
+
         else:
-           vscale = 1.
+
+           g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1+fint, self.config)
+
+           vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
+                    'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
+           vDict = g1.set_var_bounds('precipitation', vDict)
+
+           ensmat = g1.create_ens_array('precipitation', g1.nens, vDict)
+
+           for n in range(g1.nens):
+              ensmat[n,:,:] = np.squeeze(g1.read_grib_field('precipitation', n, vDict))
+
+           for fhr in range(fhr1+2*fint, fhr2+fint, fint):
+
+              g1 = self.dpp.ReadGribFiles(self.datea_str, fhr, self.config)
+
+              for n in range(g1.nens):
+                 ensmat[n,:,:] = ensmat[n,:,:] + np.squeeze(g1.read_grib_field('precipitation', n, vDict))
+
+           if hasattr(g1.read_grib_field('precipitation', 0, vDict), 'units'):
+              if g1.read_grib_field('precipitation', 0, vDict).units == "m":
+                 vscale = 1000.
+              else:
+                 vscale = 1.
+           else:
+              vscale = 1.
+
 
         #  Scale all of the rainfall to mm and to a 24 h precipitation
-        ensmat[:,:,:] = (ensmat[:,:,:] - ensmati[:,:,:]) * vscale * 24. / float(fhr2-fhr1)
+        ensmat[:,:,:] = ensmat[:,:,:] * vscale * 24. / float(fhr2-fhr1)
 
         e_mean = np.mean(ensmat, axis=0)
         e_std  = np.std(ensmat, axis=0)
