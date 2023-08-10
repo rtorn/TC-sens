@@ -1783,10 +1783,6 @@ class ComputeForecastMetrics:
            lon1 = lon1 - dlon
            lon2 = lon2 + dlon
 
-           #  TEMPORARY HACK TO DEAL WITH LAST POINT NOT BEING READ BY ECCODES
-           if self.storm[-1] == "e" or self.storm[-1] == "c":
-              lon1 = np.max([lon1, 180.0])
-
            #  Now figure out the 24 h after landfall, so we can set the appropriate 24 h period.
            vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
                  'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
@@ -2209,10 +2205,6 @@ class ComputeForecastMetrics:
            lat2 = lat2 + dlat
            lon1 = lon1 - dlon
            lon2 = lon2 + dlon
-
-           #  TEMPORARY HACK
-           if self.storm[-1] == "e" or self.storm[-1] == "c":
-              lon1 = np.max([lon1, 180.0])
 
            vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
                     'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
