@@ -83,7 +83,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotDict['tcLon'] = 0.
       tc_in_dom = False 
 
-   plotDict['plotTitle'] = '{0} F{1}'.format(datea,fhrt)
+   plotDict['plotTitle'] = config['sens'].get('title_string','{0} F{1}'.format(datea,fhrt))
    plotDict['fileTitle'] = 'TEST JHT-Torn ECMWF Sensitivity'
    plotDict['initDate']  = '{0}-{1}-{2} {3}:00:00'.format(datea[0:4],datea[4:6],datea[6:8],datea[8:10])
    plotDict['sig_value'] = scipy.stats.t.ppf(q=1.0-float(plotDict.get('significance_level','.05'))/2,df=nens)

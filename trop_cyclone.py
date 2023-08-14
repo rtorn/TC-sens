@@ -194,7 +194,7 @@ def plot_ens_tc_track(atcf, storm, datea, config):
              ax.plot(x_ell, y_ell, color=ellcol[color_index], zorder=12, transform=ccrs.PlateCarree())
              color_index = color_index + 1
    
-    plt.title("{0} {1} forecast of {2}".format(str(datea), config.get('model_src',''), storm))
+    plt.title(config['vitals_plot'].get('title_string',"{0} {1} forecast of {2}".format(str(datea),config.get('model_src',''),storm)))
     
     try:   # Create target Directory
         os.makedirs(output_dir)

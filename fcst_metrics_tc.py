@@ -191,7 +191,8 @@ class ComputeForecastMetrics:
         self.__position_eof()
 
         #  Compute integrated intensity EOF metric
-        self.__intensity_eof()
+        if self.config['metric'].get('intensity_eof_metric', 'True') == 'True':
+           self.__intensity_eof()
 
         #  Compute combined track-intensity EOF metric
         if self.config['metric'].get('track_inten_eof_metric', 'False') == 'True':
@@ -860,8 +861,8 @@ class ComputeForecastMetrics:
             color_index += 1            
 
         fracvar = '%4.3f' % solver.varianceFraction(neigs=1)
-        plt.title("{0} {1} forecast of {2}, {3} of variance".format(self.datea_str, \
-                           self.config.get('model_src',''), self.storm, fracvar))
+        plt.title(self.config['metric'].get('title_string','{0} {1} forecast of {2}, {3} of variance'.format(self.datea_str, \
+                           self.config.get('model_src',''), self.storm, fracvar)))
 
         outdir = '{0}/f{1}_intmajtrack'.format(self.config['figure_dir'],'%0.3i' % fhr2)
         if not os.path.isdir(outdir):
