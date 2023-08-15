@@ -322,6 +322,9 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
+      if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
+         writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_csteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+
       plotDict['meanCntrs'] = np.array([-5.0, -4.0, -3.0, -2.0, -1.5, -1.0, -0.5, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0])
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_csteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
