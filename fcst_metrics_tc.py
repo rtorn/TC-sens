@@ -679,6 +679,11 @@ class ComputeForecastMetrics:
               dy[t] = dy[t] / e_cnt
               dx[t] = dx[t] / e_cnt
 
+           else:
+
+              m_lat[t] = np.nan
+              m_lon[t] = np.nan
+
 
         imsum = 0.
         jmsum = 0.
