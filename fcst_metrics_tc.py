@@ -1852,7 +1852,7 @@ class ComputeForecastMetrics:
 
         else:
 
-           g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1+fint, self.config)
+           g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1+fint, confgrib)
 
            vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
                     'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
@@ -1865,7 +1865,7 @@ class ComputeForecastMetrics:
 
            for fhr in range(fhr1+2*fint, fhr2+fint, fint):
 
-              g1 = self.dpp.ReadGribFiles(self.datea_str, fhr, self.config)
+              g1 = self.dpp.ReadGribFiles(self.datea_str, fhr, confgrib)
 
               for n in range(g1.nens):
                  ensmat[n,:,:] = ensmat[n,:,:] + np.squeeze(g1.read_grib_field('precipitation', n, vDict))
