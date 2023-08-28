@@ -300,9 +300,10 @@ def precipitation_ens_maps(datea, fhr1, fhr2, config):
     g2 = dpp.ReadGribFiles(datea, fhr2, config)
     vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
              'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
+    vDict = g2.set_var_bounds('precipitation', vDict)
     ensmat = g2.create_ens_array('precipitation', g2.nens, vDict)
 
-    if g1.has_total_precip:
+    if g2.has_total_precip:
 
        if fhr1 > 0:
           g1 = dpp.ReadGribFiles(datea, fhr1, config)
