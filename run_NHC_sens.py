@@ -297,28 +297,46 @@ def precipitation_ens_maps(datea, fhr1, fhr2, config):
     date2_str = datea_2.strftime("%Y%m%d%H")
 
     #  Read the total precipitation for the beginning of the window
-    g1 = dpp.ReadGribFiles(datea, fhr1, config)
-
+    g2 = dpp.ReadGribFiles(datea, fhr2, config)
     vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
              'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
-    vDict = g1.set_var_bounds('precipitation', vDict)
-
-    g2 = dpp.ReadGribFiles(datea, fhr2, config)
-
     ensmat = g2.create_ens_array('precipitation', g2.nens, vDict)
 
-    for n in range(g2.nens):
-       ens1 = np.squeeze(g1.read_grib_field('precipitation', n, vDict))
-       ens2 = np.squeeze(g2.read_grib_field('precipitation', n, vDict))
-       ensmat[n,:,:] = ens2[:,:] - ens1[:,:]
+    if g1.has_total_precip:
 
-    if hasattr(ens2, 'units'):
-       if ens2.units == "m":
-          vscale = 1000.
+       if fhr1 > 0:
+          g1 = dpp.ReadGribFiles(datea, fhr1, config)
+          for n in range(g2.nens):
+             ens1 = np.squeeze(g1.read_grib_field('precipitation', n, vDict))
+             ens2 = np.squeeze(g2.read_grib_field('precipitation', n, vDict))
+             ensmat[n,:,:] = ens2[:,:] - ens1[:,:]
+       else:
+          for n in range(g2.nens):
+             ensmat[n,:,:] = np.squeeze(g2.read_grib_field('precipitation', n, vDict))
+
+       if hasattr(ens2, 'units'):
+          if ens2.units == "m":
+             vscale = 1000.
+          else:
+             vscale = 1.
        else:
           vscale = 1.
+
     else:
-       vscale = 1.
+
+       for fhr in range(fhr1+fint, fhr2+fint, fint):
+          g1 = dpp.ReadGribFiles(datea, fhr, config)
+          for n in range(g1.nens):
+             ensmat[n,:,:] = ensmat[n,:,:] + np.squeeze(g1.read_grib_field('precipitation', n, vDict))
+
+       if hasattr(g1.read_grib_field('precipitation', 0, vDict), 'units'):
+          if g1.read_grib_field('precipitation', 0, vDict).units == "m":
+             vscale = 1000.
+          else:
+             vscale = 1.
+       else:
+          vscale = 1.
+
 
     #  Scale all of the rainfall to mm and to a 24 h precipitation
     ensmat[:,:,:] = ensmat[:,:,:] * vscale * 24. / float(fhr2-fhr1)
