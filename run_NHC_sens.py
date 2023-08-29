@@ -295,6 +295,7 @@ def precipitation_ens_maps(datea, fhr1, fhr2, config):
     date1_str = datea_1.strftime("%Y%m%d%H")
     datea_2   = dt.datetime.strptime(datea, '%Y%m%d%H') + dt.timedelta(hours=fhr2)
     date2_str = datea_2.strftime("%Y%m%d%H")
+    fint = int(config.get('input_hour_int','6'))
 
     #  Read the total precipitation for the beginning of the window
     g2 = dpp.ReadGribFiles(datea, fhr2, config)
