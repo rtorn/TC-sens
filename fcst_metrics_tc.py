@@ -1727,6 +1727,15 @@ class ComputeForecastMetrics:
         metname = 'pcpeof'
         eofn = 1
 
+        lat1 = 91.0
+        lat2 = -91.0
+        if self.storm[-1] == "e" or self.storm[-1] == "c":
+           lon1 = 361.0
+           lon2 = -1.0
+        else:
+           lon1 = 181.0
+           lon2 = -181.0
+
         infile = self.config['metric'].get('precip_metric_file').format(self.datea_str,self.storm)
 
         try:
@@ -1734,13 +1743,13 @@ class ComputeForecastMetrics:
            conf.read(infile)
            fhr1 = int(conf['definition'].get('forecast_hour1',fhr1))
            fhr2 = int(conf['definition'].get('forecast_hour2',fhr2))
-           lat1 = float(conf['definition'].get('latitude_min','-9999.'))
-           lat2 = float(conf['definition'].get('latitude_max','-9999.'))
-           lon1 = float(conf['definition'].get('longitude_min','-9999.'))
-           lon2 = float(conf['definition'].get('longitude_max','-9999.'))
-           tcmet = eval(conf['definition'].get('tc_metric_box',tcmet))
+           lat1 = float(conf['definition'].get('latitude_min',lat1))
+           lat2 = float(conf['definition'].get('latitude_max',lat2))
+           lon1 = float(conf['definition'].get('longitude_min',lon1))
+           lon2 = float(conf['definition'].get('longitude_max',lon2))
+           tcmet = eval(conf['definition'].get('tc_metric_box',str(tcmet)))
            tcmet_space_dbuff = float(conf['definition'].get('tc_metric_dom_buffer',tcmet_space_dbuff))
-           tcmet_time_adapt = eval(conf['definition'].get('tc_metric_time_adapt',tcmet_time_adapt))
+           tcmet_time_adapt = eval(conf['definition'].get('tc_metric_time_adapt',str(tcmet_time_adapt)))
            tcmet_time_dbuff = float(conf['definition'].get('tc_metric_time_dom_buffer',tcmet_time_dbuff))
            tcmet_time_freq = int(conf['definition'].get('tc_metric_time_freq',tcmet_time_freq))
            pcpmin = float(conf['definition'].get('precipitation_minimum',pcpmin))
@@ -1756,7 +1765,7 @@ class ComputeForecastMetrics:
         if not tcmet:
 
            if lat1 < -90. or lat1 > 90. or lat2 < -90. or lat2 > 90. or \
-              lat1 < -180. or lat1 > 180. or lat2 < -180. or lat2 > 180.:
+              lon1 < -180. or lon1 > 180. or lon2 < -180. or lon2 > 180.:
 
               logging.error('  TC Precipitation Metric has fixed domain, but domain is not specified corrrectly')
               logging.error('  lat1 = {0}, lat2 = {1}, lat1 = {2}, lat2 = {3}'.format(lat1,lat2,lon1,lon2))
@@ -1771,43 +1780,37 @@ class ComputeForecastMetrics:
         #  Identify a draft domain based on TC track, land, and time frame (if desired)
         if tcmet:
 
-           lat1 = 90.0
-           lat2 = -90.0
-           if self.storm[-1] == "e" or self.storm[-1] == "c":
-              lon1 = 360.0
-              lon2 = 0.0
-           else:
-              lon1 = 180.0
-              lon2 = -180.0
+           if lat1 >= 90. or lat2 <= -90. or lon1 >= 360.0 or lon2 <= -180.0 :
 
-           #  Loop over all times in forecast window, find the min/max of latitude/longitude of track
-           for fhr in range(fhr1, fhr2+fint, fint):
+              #  Loop over all times in forecast window, find the min/max of latitude/longitude of track
+              for fhr in range(fhr1, fhr2+fint, fint):
 
-              lat, lon=self.atcf.ens_lat_lon_time(fhr)
-              for n in range(self.nens):
-                 if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+                 lat, lon=self.atcf.ens_lat_lon_time(fhr)
+                 for n in range(self.nens):
+                    if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
 
-                    if self.storm[-1] == "e" or self.storm[-1] == "c":
-                       lon[n] = (lon[n] + 360.) % 360.
+                       if self.storm[-1] == "e" or self.storm[-1] == "c":
+                          lon[n] = (lon[n] + 360.) % 360.
 
-                    lat1 = np.min([lat1, lat[n]])
-                    lat2 = np.max([lat2, lat[n]])
-                    lon1 = np.min([lon1, lon[n]])
-                    lon2 = np.max([lon2, lon[n]])
+                       lat1 = np.min([lat1, lat[n]])
+                       lat2 = np.max([lat2, lat[n]])
+                       lon1 = np.min([lon1, lon[n]])
+                       lon2 = np.max([lon2, lon[n]])
 
-           #  Bail out of the metric if no TC positions are present for the time window.
-           if lat1 >= 90.0 or lat2 <= -90.0:
+              #  Bail out of the metric if no TC positions are present for the time window.
+              if lat1 >= 90.0 or lat2 <= -90.0:
 
-              logging.error('  TC Precipitation Metric does not have any TC positions in the time window.  Skipping metric.')
-              return None
+                 logging.error('  TC Precipitation Metric does not have any TC positions in the time window.  Skipping metric.')
+                 return None
 
-           dlat = np.ceil(np.degrees(tcmet_space_dbuff / self.earth_radius))
-           dlon = np.ceil(np.degrees(tcmet_space_dbuff / (self.earth_radius*np.cos(np.radians(np.max(np.abs([lat1,lat2])))))))
+              dlat = np.ceil(np.degrees(tcmet_space_dbuff / self.earth_radius))
+              dlon = np.ceil(np.degrees(tcmet_space_dbuff / (self.earth_radius*np.cos(np.radians(np.max(np.abs([lat1,lat2])))))))
 
-           lat1 = lat1 - dlat
-           lat2 = lat2 + dlat
-           lon1 = lon1 - dlon
-           lon2 = lon2 + dlon
+              lat1 = lat1 - dlat
+              lat2 = lat2 + dlat
+              lon1 = lon1 - dlon
+              lon2 = lon2 + dlon
+
 
            #  Now figure out the 24 h after landfall, so we can set the appropriate 24 h period.
            if tcmet_time_adapt:
