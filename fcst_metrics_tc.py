@@ -1714,8 +1714,8 @@ class ComputeForecastMetrics:
         along with the precipitation perturbation that is consistent with the first EOF. 
         '''
 
-        fhr1 = int(self.config['metric'].get('precip_eof_hour_init','48'))
-        fhr2 = int(self.config['metric'].get('precip_eof_hour_final','120'))
+        fhr1 = int(self.config['metric'].get('precip_eof_forecast_hour1','48'))
+        fhr2 = int(self.config['metric'].get('precip_eof_forecast_hour2','120'))
         fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
         tcmet_space_dbuff = float(self.config['metric'].get('precip_eof_dom_buffer',300.0))
         lmaskmin = float(self.config['metric'].get('land_mask_minimum','0.2'))
@@ -2149,16 +2149,16 @@ class ComputeForecastMetrics:
         along with the wind speed perturbation that is consistent with the first EOF. 
         '''
 
-        fhr1 = int(self.config['metric'].get('speed_eof_hour_init','48'))
-        fhr2 = int(self.config['metric'].get('speed_eof_hour_final','96'))
+        fhr1 = int(self.config['metric'].get('wind_speed_eof_forecast_hour1','48'))
+        fhr2 = int(self.config['metric'].get('wind_speed_eof_forecast_hour2','96'))
         fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
-        tcmet_buff = float(self.config['metric'].get('speed_eof_box_buffer',300.0))
-        mask_land = eval(self.config['metric'].get('land_mask_metric','False'))
-        tcmet = True
+        tcmet_buff = float(self.config['metric'].get('wind_speed_eof_dom_buffer',300.0))
+        mask_land = eval(self.config['metric'].get('land_mask','False'))
+        tcmet = eval(self.config['metric'].get('wind_speed_eof_adapt','True'))
         metname = 'wndeof'
         eofn = 1
 
-        infile = self.config['metric'].get('wind_metric_file').format(self.datea_str,self.storm)
+        infile = self.config['metric'].get('wind_speed_metric_file').format(self.datea_str,self.storm)
 
         try:
            conf = configparser.ConfigParser()
@@ -2169,11 +2169,11 @@ class ComputeForecastMetrics:
            lat2 = float(conf['definition'].get('latitude_max','-9999.'))
            lon1 = float(conf['definition'].get('longitude_min','-9999.'))
            lon2 = float(conf['definition'].get('longitude_max','-9999.'))
-           tcmet = eval(conf['definition'].get('tc_metric_box',tcmet))
-           tcmet_buff = float(conf['definition'].get('tc_metric_box_buffer',tcmet_buff))
+           tcmet = eval(conf['definition'].get('adapt',str(tcmet)))
+           tcmet_buff = float(conf['definition'].get('dom_buffer',tcmet_buff))
+           mask_land = eval(conf['definition'].get('land_mask',mask_land))
            metname = conf['definition'].get('metric_name',metname)
            eofn = int(conf['definition'].get('eof_number',eofn))
-           mask_land = eval(conf['definition'].get('land_mask_metric',mask_land))
         except:
            logging.warning('  {0} does not exist.  Using default/namelist values'.format(infile))
 

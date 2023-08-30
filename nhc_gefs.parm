@@ -34,7 +34,7 @@ intensity_eof_hour_final=48
 intensity_eof_member_frac = 0.3
 kinetic_energy_metric=False
 wind_speed_eof_metric=False
-wind_metric_file=/free/torn/SHOUT/JHT-python/metrics/{0}_{1}_wind
+wind_speed_metric_file=/free/torn/SHOUT/JHT-python/metrics/{0}_{1}_wind
 precip_eof_metric=True
 precip_metric_file=/rt11/torn/JHT/metrics_pcp/{0}_{1}_precip
 
