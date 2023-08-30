@@ -188,7 +188,8 @@ class ComputeForecastMetrics:
             self.__intensity_metrics() 
 
         #  Compute integrated position EOF metric
-        self.__position_eof()
+        if eval(self.config['metric'].get('track_eof_metric', 'True')):
+           self.__position_eof()
 
         #  Compute integrated intensity EOF metric
         if self.config['metric'].get('intensity_eof_metric', 'True') == 'True':
@@ -207,7 +208,7 @@ class ComputeForecastMetrics:
            self.__precipitation_mean()
 
         #  Compute precipitation EOF metric
-        if self.config['metric'].get('precipitation_eof_metric', 'False') == 'True':
+        if self.config['metric'].get('precip_eof_metric', 'False') == 'True':
            self.__precipitation_eof()
 
 
@@ -1716,14 +1717,14 @@ class ComputeForecastMetrics:
         fhr1 = int(self.config['metric'].get('precip_eof_hour_init','48'))
         fhr2 = int(self.config['metric'].get('precip_eof_hour_final','120'))
         fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
-        tcmet_space_dbuff = float(self.config['metric'].get('precip_eof_box_buffer',300.0))
-        pcpmin = float(self.config['metric'].get('precipitation_minimum','12.7'))
+        tcmet_space_dbuff = float(self.config['metric'].get('precip_eof_dom_buffer',300.0))
         lmaskmin = float(self.config['metric'].get('land_mask_minimum','0.2'))
-        mask_land = eval(self.config['metric'].get('land_mask_precip_metric','True'))
+        mask_land = eval(self.config['metric'].get('precip_eof_land_mask','True'))
         tcmet = eval(self.config['metric'].get('precip_eof_adapt','True'))
         tcmet_time_adapt = eval(self.config['metric'].get('precip_eof_time_adapt','False'))
-        tcmet_time_dbuff = 2.0
-        tcmet_time_freq  = 6
+        tcmet_time_dbuff = float(self.config['metric'].get('precip_eof_time_adapt_domain',2.0))
+        tcmet_time_freq  = int(self.config['metric'].get('precip_eof_time_adapt_freq',6))
+        pcpmin = float(self.config['metric'].get('precip_eof_adapt_pcp_min','12.7'))
         metname = 'pcpeof'
         eofn = 1
 
@@ -1747,16 +1748,16 @@ class ComputeForecastMetrics:
            lat2 = float(conf['definition'].get('latitude_max',lat2))
            lon1 = float(conf['definition'].get('longitude_min',lon1))
            lon2 = float(conf['definition'].get('longitude_max',lon2))
-           tcmet = eval(conf['definition'].get('tc_metric_box',str(tcmet)))
-           tcmet_space_dbuff = float(conf['definition'].get('tc_metric_dom_buffer',tcmet_space_dbuff))
-           tcmet_time_adapt = eval(conf['definition'].get('tc_metric_time_adapt',str(tcmet_time_adapt)))
-           tcmet_time_dbuff = float(conf['definition'].get('tc_metric_time_dom_buffer',tcmet_time_dbuff))
-           tcmet_time_freq = int(conf['definition'].get('tc_metric_time_freq',tcmet_time_freq))
-           pcpmin = float(conf['definition'].get('precipitation_minimum',pcpmin))
+           tcmet = eval(conf['definition'].get('adapt',str(tcmet)))
+           tcmet_space_dbuff = float(conf['definition'].get('dom_buffer',tcmet_space_dbuff))
+           tcmet_time_adapt = eval(conf['definition'].get('time_adapt',str(tcmet_time_adapt)))
+           tcmet_time_dbuff = float(conf['definition'].get('time_adapt_domain',tcmet_time_dbuff))
+           tcmet_time_freq = int(conf['definition'].get('time_adapt_freq',tcmet_time_freq))
+           pcpmin = float(conf['definition'].get('adapt_pcp_min',pcpmin))
            lmaskmin = float(conf['definition'].get('land_mask_minimum',lmaskmin))
+           mask_land = eval(conf['definition'].get('land_mask',mask_land))
            metname = conf['definition'].get('metric_name',metname)
            eofn = int(conf['definition'].get('eof_number',eofn))
-           mask_land = eval(conf['definition'].get('land_mask_metric',mask_land))
         except:
            logging.warning('  {0} does not exist.  Using default/namelist values'.format(infile))
 

@@ -46,13 +46,13 @@ kinetic_energy_metric=True
 wind_speed_eof_metric=True
 wind_metric_file=/rt11/torn/JHT/metrics_wind/{0}_{1}_wind
 fcst_int=6
-precipitation_eof_metric=True
+precip_eof_metric=True
+precip_eof_time_adapt=True
 precip_metric_file=/rt11/torn/JHT/metrics_pcp/{0}_{1}_precip
 grid_interval=2
 
 [fields]
 calc_steer_circ=True
-calc_pv250hPa=True
 calc_theta-e=True
 calc_q500-850hPa=True
 calc_ivt=True
