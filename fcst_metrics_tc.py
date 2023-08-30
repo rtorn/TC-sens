@@ -2124,6 +2124,7 @@ class ComputeForecastMetrics:
         #  Calculate total precipitaiton for models that output precipitation in time periods
         else:
 
+           fint = int(self.config['metric'].get('fcst_int',6))
            for fhr in range(fhr1+fint, fhr2+fint, fint):
               g1 = self.dpp.ReadGribFiles(self.datea_str, fhr, confgrib)
               for n in range(g1.nens):
