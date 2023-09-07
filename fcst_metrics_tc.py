@@ -1728,6 +1728,8 @@ class ComputeForecastMetrics:
         metname = 'pcpeof'
         eofn = 1
 
+        logging.warning('  Precipitation EOF Metric:')
+
         lat1 = 91.0
         lat2 = -91.0
         if self.storm[-1] == "e" or self.storm[-1] == "c":
@@ -1739,6 +1741,7 @@ class ComputeForecastMetrics:
 
         infile = self.config['metric'].get('precip_metric_file').format(self.datea_str,self.storm)
 
+        #if os.path.isfile(infile):
         try:
            conf = configparser.ConfigParser()
            conf.read(infile)
@@ -1842,12 +1845,14 @@ class ComputeForecastMetrics:
                        'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
 
               print(latc,lonc)
+              logging.info('    Precip. Time Adapt: Lat/Lon center: {0}, {1}'.format(latc,lonc))
 
               pmax = -1.0
               for fhr in range(fhr1, fhr2-24+tcmet_time_freq, tcmet_time_freq):
 
                  psum = np.sum(np.mean(self.__read_precip(fhr, fhr+24, confgrib, tDict), axis=0))
-                 print('time',fhr,fhr+24,psum.values)
+                 print(fhr,fhr+24,psum.values)
+                 logging.info('    Precip. Time Adapt: {0}-{1} h, area precip: {2}'.format(fhr,fhr+24,psum.values))
                  if psum > pmax:
                     fhr1 = fhr
                     fhr2 = fhr+24
@@ -1898,7 +1903,9 @@ class ComputeForecastMetrics:
            maxloc = np.where(estd_mask == stdmax)
            icen   = int(maxloc[1])
            jcen   = int(maxloc[0])
-
+           lonc   = e_mean.longitude.values[icen]
+           latc   = e_mean.latitude.values[jcen]
+ 
            fmgrid = e_mean.copy()
            fmgrid[:,:] = 0.0
            fmgrid[jcen,icen] = 1.0
@@ -2038,8 +2045,6 @@ class ComputeForecastMetrics:
            pc1[:]    = -pc1[:]
            dpcp[:,:] = -dpcp[:,:]
 
-        gridInt = 5
-
         #  Create basic figure, including political boundaries and grid lines
         fig = plt.figure(figsize=(11,8.5))
 
@@ -2055,6 +2060,8 @@ class ComputeForecastMetrics:
        
         if tcmet: 
            pltb = plt.contour(ensmat.longitude.values,ensmat.latitude.values,fmgrid,[0.5],linewidths=2.5, colors='0.4', zorder=10)
+           if 'lonc' in locals():
+              plt.plot(lonc, latc, '+', color='k', markersize=12, markeredgewidth=3, transform=ccrs.PlateCarree())
 
         pcpfac = np.ceil(np.max(dpcp) / 5.0)
         cntrs = np.array([-5., -4., -3., -2., -1., 1., 2., 3., 4., 5]) * pcpfac
@@ -2078,20 +2085,24 @@ class ComputeForecastMetrics:
         plt.savefig('{0}/metric.png'.format(outdir), format='png', dpi=120, bbox_inches='tight')
         plt.close(fig)
 
-        f_met_pcpeof_nc = {'coords': {},
-                           'attrs': {'FORECAST_METRIC_LEVEL': '',
-                                     'FORECAST_METRIC_NAME': 'precipitation PC',
-                                     'FORECAST_METRIC_SHORT_NAME': 'pcpeof'},
-                             'dims': {'num_ens': self.nens},
-                             'data_vars': {'fore_met_init': {'dims': ('num_ens',),
-                                                            'attrs': {'units': '',
-                                                                      'description': 'precipitation PC'},
-                                                            'data': pc1.data}}}
+        fmetatt = {'FORECAST_METRIC_LEVEL': '', 'FORECAST_METRIC_NAME': 'precipitation PC', 'FORECAST_METRIC_SHORT_NAME': 'pcpeof', \
+                   'FORECAST_HOUR1': int(fhr1), 'FORECAST_HOUR2': int(fhr2), 'LATITUDE1': lat1, 'LATITUDE2': lat2, 'LONGITUDE1': lon1, \
+                   'LONGITUDE2': lon2, 'LAND_MASK_MINIMUM': lmaskmin, 'ADAPT': str(tcmet), 'TIME_ADAPT': str(tcmet_time_adapt), \
+                   'TIME_ADAPT_DOMAIN': tcmet_time_dbuff, 'TIME_ADAPT_FREQ': tcmet_time_freq, 'ADAPT_PCP_MIN': pcpmin, 'EOF_NUMBER': int(eofn)}
 
-        xr.Dataset.from_dict(f_met_pcpeof_nc).to_netcdf(
+        if 'lonc' in locals():
+           fmetatt.update({'LATITUDE_CENTER': latc, 'LONGITUDE_CENTER': lonc})
+
+        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens}, \
+                 'data_vars': {'fore_met_init': {'dims': ('num_ens',), 'attrs': {'units': '', \
+                                                 'description': 'precipitation PC'}, 'data': pc1.data}}}
+
+        xr.Dataset.from_dict(f_met).to_netcdf(
             "{0}/{1}_f{2}_{3}.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2,metname), encoding={'fore_met_init': {'dtype': 'float32'}})
 
         self.metlist.append('f{0}_{1}'.format('%0.3i' % fhr2, metname))
+
+        del f_met
 
 
     def __read_precip(self, fhr1, fhr2, confgrib, vDict):
