@@ -13,8 +13,8 @@ model_dir=https://nomads.ncep.noaa.gov/dods/gefs
 work_dir=/rt11/torn/JHT/work_gefs
 output_dir=/rt11/torn/JHT/output_gefs
 script_dir=/home11/staff/torn/JHT-python
-figure_dir=/home11/staff/torn/html/JHT/GEFS
-outgrid_dir=/home11/staff/torn/html/JHT/GEFS/grid
+figure_dir=/home11/staff/torn/html/HOT-alt/GEFS
+outgrid_dir=/home11/staff/torn/html/HOT-alt/GEFS/grid
 log_dir=/rt11/torn/JHT/log_gefs
 
 save_work_dir=True
@@ -23,6 +23,10 @@ save_work_dir=True
 trackfile=track.png
 intfile=intensity.png
 forecast_hour_max=144
+grid_interval=5
+plot_best=False
+precip_hour_1=[48]
+precip_hour_2=[72]
 
 [metric]
 int_track_fhr1=24
@@ -42,13 +46,14 @@ precip_metric_file=/rt11/torn/JHT/metrics_pcp/{0}_{1}_precip
 calc_steer_circ=True
 calc_theta-e=False
 calc_q500-850hPa=False
+calc_ivt=False
+calc_pv_pres=False
 min_lat=0.0
 max_lat=65.0
 min_lon=-180.0
 max_lon=-10.0
 
 [sens]
-metrics=f120_intmajtrack, f096_intmslp
 grid_interval=10.
 barb_interval=9
 dropsonde_file=./2019083100_drop_info.tx
