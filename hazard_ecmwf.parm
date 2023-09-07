@@ -20,7 +20,7 @@ work_dir=/rt11/torn/JHT/test_ecmwf
 output_dir=/rt11/torn/JHT/output_ecmwf
 script_dir=/home11/staff/torn/JHT-python
 figure_dir=/home11/staff/torn/html/HOT-alt/ECMWF
-outgrid_dir=/home11/staff/torn/html/JHT/ECMWF/grid
+outgrid_dir=/home11/staff/torn/html/HOT-alt/ECMWF/grid
 log_dir=/rt11/torn/JHT/log_ecmwf
 
 save_work_dir=True
@@ -80,7 +80,7 @@ rawin_mark_size=6
 rawin_mark_color=gray
 range_rings=False
 ring_values=[300,600,900,1200]
-output_sens=False
+output_sens=True
 nhc_sens=True
 zero_non_sig_sens=True
 plot_summary=True
