@@ -1741,28 +1741,30 @@ class ComputeForecastMetrics:
 
         infile = self.config['metric'].get('precip_metric_file').format(self.datea_str,self.storm)
 
-        #if os.path.isfile(infile):
-        try:
-           conf = configparser.ConfigParser()
-           conf.read(infile)
-           fhr1 = int(conf['definition'].get('forecast_hour1',fhr1))
-           fhr2 = int(conf['definition'].get('forecast_hour2',fhr2))
-           lat1 = float(conf['definition'].get('latitude_min',lat1))
-           lat2 = float(conf['definition'].get('latitude_max',lat2))
-           lon1 = float(conf['definition'].get('longitude_min',lon1))
-           lon2 = float(conf['definition'].get('longitude_max',lon2))
-           tcmet = eval(conf['definition'].get('adapt',str(tcmet)))
-           tcmet_space_dbuff = float(conf['definition'].get('dom_buffer',tcmet_space_dbuff))
-           tcmet_time_adapt = eval(conf['definition'].get('time_adapt',str(tcmet_time_adapt)))
-           tcmet_time_dbuff = float(conf['definition'].get('time_adapt_domain',tcmet_time_dbuff))
-           tcmet_time_freq = int(conf['definition'].get('time_adapt_freq',tcmet_time_freq))
-           pcpmin = float(conf['definition'].get('adapt_pcp_min',pcpmin))
-           lmaskmin = float(conf['definition'].get('land_mask_minimum',lmaskmin))
-           mask_land = eval(conf['definition'].get('land_mask',mask_land))
-           metname = conf['definition'].get('metric_name',metname)
-           eofn = int(conf['definition'].get('eof_number',eofn))
-        except:
-           logging.warning('  {0} does not exist.  Using default/namelist values'.format(infile))
+        if os.path.isfile(infile):
+           try:
+              conf = configparser.ConfigParser()
+              conf.read(infile)
+              fhr1 = int(conf['definition'].get('forecast_hour1',fhr1))
+              fhr2 = int(conf['definition'].get('forecast_hour2',fhr2))
+              lat1 = float(conf['definition'].get('latitude_min',lat1))
+              lat2 = float(conf['definition'].get('latitude_max',lat2))
+              lon1 = float(conf['definition'].get('longitude_min',lon1))
+              lon2 = float(conf['definition'].get('longitude_max',lon2))
+              tcmet = eval(conf['definition'].get('adapt',str(tcmet)))
+              tcmet_space_dbuff = float(conf['definition'].get('dom_buffer',tcmet_space_dbuff))
+              tcmet_time_adapt = eval(conf['definition'].get('time_adapt',str(tcmet_time_adapt)))
+              tcmet_time_dbuff = float(conf['definition'].get('time_adapt_domain',tcmet_time_dbuff))
+              tcmet_time_freq = int(conf['definition'].get('time_adapt_freq',tcmet_time_freq))
+              pcpmin = float(conf['definition'].get('adapt_pcp_min',pcpmin))
+              lmaskmin = float(conf['definition'].get('land_mask_minimum',lmaskmin))
+              mask_land = eval(conf['definition'].get('land_mask',mask_land))
+              metname = conf['definition'].get('metric_name',metname)
+              eofn = int(conf['definition'].get('eof_number',eofn))
+           except:
+              logging.warning('  Error reading {0}.  Using parameter and/or default values'.format(infile))
+        else:
+           logging.warning('  {0} does not exist.  Using parameter and/or default values'.format(infile))
 
 
         #  Check to make sure that bounds are defined correctly if not using TC-based metric.
