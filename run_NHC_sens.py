@@ -146,7 +146,8 @@ def main():
     for handler in logging.root.handlers[:]:
        logging.root.removeHandler(handler)
     logging.basicConfig(filename='{0}/{1}_{2}.log'.format(config.get('log_dir','.'),str(datea),storm), \
-                               filemode='w', format='%(asctime)s;%(message)s')
+                        filemode='w', format='%(asctime)s;%(message)s', \
+                        level=getattr(logging, config.get('log_level','INFO').upper(), None))
     logging.warning("STARTING SENSITIVITIES for {0} on {1}".format(bbnnyyyy, str(datea)))
 
 
@@ -179,10 +180,15 @@ def main():
 
 
     #  Compute TC-related forecast metrics
-    logging.info("Computing forecast Metrics")
+    logging.info("Computing Forecast Metrics")
     met = fmtc.ComputeForecastMetrics(datea, storm, atcf, config)
     metlist = met.get_metlist()
     print(metlist)
+
+    #  Exit if there are no metrics
+    if len(metlist) < 1:
+       logging.error('No metrics have been calculated.  Exiting the program.')
+       sys.exit()
 
 
     #  Compute forecast fields at each desired time to use in sensitivity calculation
@@ -253,17 +259,29 @@ def main():
 
 
     #  Create a tar file of gridded sensitivity files, if needed
-    os.chdir(config['work_dir'])
+    if eval(config['sens'].get('output_sens', 'False')):
 
-    tarout = '{0}/{1}.tar'.format(config['outgrid_dir'],datea) 
-    if ( os.path.isfile(tarout) and tarfile.is_tarfile(tarout) ):
-       os.system('tar --skip-old-files -xf {0}'.format(tarout))
+       os.chdir(config['work_dir'])
 
-    tar = tarfile.open(tarout, 'w')
-    for f in glob.glob('{0}/*/*.nc'.format(datea)):
-       tar.add(f)
-    tar.close()
+       tarout = '{0}/{1}.tar'.format(config['outgrid_dir'],datea) 
+       if ( os.path.isfile(tarout) and tarfile.is_tarfile(tarout) ):
+          os.system('tar --skip-old-files -xf {0}'.format(tarout))
 
+       tar = tarfile.open(tarout, 'w')
+       for f in glob.glob('{0}/*/*.nc'.format(datea)):
+          tar.add(f)
+       tar.close()
+
+       tarout = '{0}/{1}.tar'.format(config['outgrid_dir'] + '/../awips',datea)
+       if ( os.path.isfile(tarout) and tarfile.is_tarfile(tarout) ):
+          os.system('tar --skip-old-files -xf {0}'.format(tarout))
+
+       tar = tarfile.open(tarout, 'w')
+       for f in glob.glob('{0}/*/*/*.nc'.format(datea)):
+          tar.add(f)
+       tar.close()
+
+       shutil.rmtree('{0}/{1}'.format(config['work_dir'],datea))
 
     #  Clean up work directory, if desired
     os.chdir('{0}/..'.format(config['work_dir']))
