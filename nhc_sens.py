@@ -89,6 +89,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
    plotDict['sig_value'] = scipy.stats.t.ppf(q=1.0-float(plotDict.get('significance_level','.05'))/2,df=nens)
    plotDict['ring_center_lat']=float(plotDict['tcLat'])
    plotDict['ring_center_lon']=float(plotDict['tcLon'])
+   plotDict['bbnn'] = bbnn
 
    stceDict = plotDict.copy()
    stceDict['output_sens']=False
@@ -175,6 +176,18 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       pltlist   = {'steer': True, 'h500': True, 'pv250': True, 'pv850': True, 'e700': True, \
                    'e850': True, 'vor': True, 'q58': True, 'ivt': False}
 
+   if 'intmajtrack' in metname:
+      metshort = 'track'
+   elif 'intmslp' in metname:
+      metshort = 'inten'
+   elif 'wndeof' in metname:
+      metshort = 'wind'
+   elif 'pcpeof' in metname:
+      metshort = 'pcp'
+
+   if eval(plotDict.get('output_sens', 'False')) and 'metshort' in locals():
+      if not os.path.isdir('{0}/{1}/{2}'.format(datea,bbnn,metshort)):
+         os.makedirs('{0}/{1}/{2}'.format(datea,bbnn,metshort), exist_ok=True)
 
    #  Read the ensemble zonal and meridional steering wind, compute ensemble mean
    ufile = '{0}/{1}_f{2}_usteer_ens.nc'.format(config['work_dir'],datea,fhrt)
@@ -210,9 +223,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
          os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
-         if not os.path.isdir('{0}/{1}'.format(datea,bbnn)):
-            os.makedirs('{0}/{1}'.format(datea,bbnn), exist_ok=True)
          writeSensFile(lat, lon, fhr, usteer, sens, sigv, '{0}/{1}/{0}_f{2}_usteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+         writeNHCSensFile(lat, lon, fhr, usteer, sens, sigv, metshort, '{0}/{1}/{3}/{0}_f{2}_usteer_sens.nc'.format(datea,bbnn,fhrt,metshort), plotDict)
 
       plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
@@ -233,7 +245,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
          os.makedirs(outdir, exist_ok=True)
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
-         writeSensFile(lat, lon, fhr, usteer, sens, sigv, '{0}/{1}/{0}_f{2}_vsteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+         writeSensFile(lat, lon, fhr, vsteer, sens, sigv, '{0}/{1}/{0}_f{2}_vsteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+         writeNHCSensFile(lat, lon, fhr, vsteer, sens, sigv, metshort, '{0}/{1}/{3}/{0}_f{2}_vsteer_sens.nc'.format(datea,bbnn,fhrt,metshort), plotDict)
 
       plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
@@ -260,6 +273,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_masteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+      if plotDict.get('output_sens', False) and any(ele in metname for ele in ['intmajtrack', 'intmslp', 'wndeof', 'pcpeof']):
+         writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metshort, '{0}/{1}/{3}/{0}_f{2}_masteer_sens.nc'.format(datea,bbnn,fhrt,metshort), plotDict)
 
       plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
@@ -324,6 +339,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_csteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+      if plotDict.get('output_sens', False) and any(ele in metname for ele in ['intmajtrack', 'intmslp', 'wndeof', 'pcpeof']):
+         writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metshort, '{0}/{1}/{3}/{0}_f{2}_csteer_sens.nc'.format(datea,bbnn,fhrt,metshort), plotDict)
 
       plotDict['meanCntrs'] = np.array([-5.0, -4.0, -3.0, -2.0, -1.5, -1.0, -0.5, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0])
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_csteer_sens.png'.format(outdir,datea,fhrt), plotDict)
@@ -385,6 +402,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_pv850hPa_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+      if plotDict.get('output_sens', False) and any(ele in metname for ele in ['intmslp', 'wndeof']):
+         writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metshort, '{0}/{1}/{3}/{0}_f{2}_pv850hPa_sens.nc'.format(datea,bbnn,fhrt,metshort), plotDict)
 
       plotDict['meanCntrs'] = np.array([0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0, 1.2, 1.4])
       plotDict['clabel_fmt'] = "%2.1f"
@@ -424,6 +443,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       if plotDict.get('output_sens', 'False')=='True' and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_ivt_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+      if plotDict.get('output_sens', False) and any(ele in metname for ele in ['pcpeof']):
+         writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metshort, '{0}/{1}/{3}/{0}_f{2}_ivt_sens.nc'.format(datea,bbnn,fhrt,metshort), plotDict)
 
       plotDict['meanCntrs'] = np.array([200., 400., 600., 800., 1000., 1300., 1600.])
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_ivt_sens.png'.format(outdir,datea,fhrt), plotDict)
@@ -586,8 +607,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
-      if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
-         writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_h500hPa_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+#      if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
+#         writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_h500hPa_sens.nc'.format(datea,bbnn,fhrt), plotDict)
 
       plotDict['meanCntrs'] = np.arange(4800, 6000, 60)
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_h500hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
@@ -614,6 +635,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
       if plotDict.get('output_sens', False) and 'intmajtrack' in metname:
          writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_q500-850hPa_sens.nc'.format(datea,bbnn,fhrt), plotDict)
+      if plotDict.get('output_sens', False) and any(ele in metname for ele in ['intmslp', 'wndeof', 'pcpeof']):
+         writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metshort, '{0}/{1}/{3}/{0}_f{2}_q500-850hPa_sens.nc'.format(datea,bbnn,fhrt,metshort), plotDict)
 
       plotDict['meanCntrs'] = np.arange(4, 40, 4)
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_q500-850hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
@@ -748,3 +771,85 @@ def plotSummarySens(lat, lon, usteer, vsteer, f1sens, f2sens, f3sens, fileout, p
    plt.savefig(fileout,format='png',dpi=120,bbox_inches='tight')
    plt.close(fig)
 
+
+def writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metname, sensfile, plotDict):
+   '''
+   Routine that writes a netCDF file that includes the ensemble-mean forecast field, 
+   sensitivity, and measure of statistical significance.  This file can be ingested into
+   other programs for plotting, such as AWIPS, or could be used within the traveling 
+   salesman flight planning software that NHC uses.
+
+   Attributes:
+      lat       (float):  Vector of latitude values
+      lon       (float):  Vector of longitude values
+      fhr         (int):  Forecast hour
+      emea      (float):  2D array of the ensemble-mean field
+      sens      (float):  2D array of sensitivity field
+      sigv      (float):  2D array of statistical significance
+      sensfile (string):  Name of netCDF file
+      plotDict  (dict.):  Dictionary that contains configuration options
+   '''
+
+   #  Create file and dimensions
+   ncfile = nc.Dataset(sensfile, mode='w')
+   lat_dim = ncfile.createDimension('lat', len(lat))
+   lon_dim = ncfile.createDimension('lon', len(lon))
+   tim_dim = ncfile.createDimension('time', 1)
+
+   if 'fileTitle' in plotDict:
+      ncfile.title       = plotDict.get('fileTitle')
+   if 'initDate' in plotDict:
+      ncfile.time_origin = plotDict.get('initDate')
+
+   #  Add TC latitude/longitude to file if present
+   if 'tcLat' in plotDict and 'tcLon' in plotDict:
+      ncfile.TC_latitude = plotDict.get('tcLat')
+      ncfile.TC_longitude = plotDict.get('tcLon')
+
+   if 'bbnn' in plotDict:
+      ncfile.ATCF_ID = plotDict['bbnn']
+      nbin = 5
+      fbin = int(plotDict['bbnn'][2:4]) % nbin
+      if fbin == 0:  fbin = nbin
+      ncfile.stormBin = "f{0}{1}".format(plotDict['bbnn'][0:2].upper(),fbin)
+
+   #  Create coordinate variables
+   lat_out = ncfile.createVariable('lat', np.float32, ('lat',))
+   lat_out.units = 'degrees_north'
+   lat_out.long_name = 'latitude'
+   lon_out = ncfile.createVariable('lon', np.float32, ('lon',))
+   lon_out.units = 'degrees_east'
+   lon_out.long_name = 'longitude'
+   fhr_out = ncfile.createVariable('forecast_hour', np.float32, ('time',))
+   fhr_out.units = 'h'
+   fhr_out.long_name = 'forecast_hour'
+
+   #  Create other variables
+   emea_out = ncfile.createVariable('{0}_ensemble_mean'.format(metname),np.float32,('lat','lon'))
+   emea_out.description = 'ensemble mean'
+   if hasattr(emea, 'units'):
+      emea_out.units = emea.units
+   sens_out = ncfile.createVariable('{0}_sensitivity'.format(metname),np.float32,('lat','lon'))
+   sens_out.description = 'regression coefficient'
+   if 'metricUnits' in plotDict:
+      sens_out.units = plotDict.get('metricUnits')
+   sigv_out = ncfile.createVariable('{0}_z_score'.format(metname),np.float32,('lat','lon'))
+   sigv_out.description = 'regression coefficient z score'
+   sigv_out.units       = ''
+
+   asen_out = ncfile.createVariable('{0}_sensitivity_track_software'.format(metname),np.float32,('lat','lon'))
+   asen_out.description = 'abs. value of regression coefficient'
+   if 'metricUnits' in plotDict:
+      asen_out.units = plotDict.get('metricUnits')
+
+   #  Write variables to a file
+   lat_out[:]    = lat
+   lon_out[:]    = lon
+   fhr_out[:]    = fhr
+
+   emea_out[:,:] = emea
+   sens_out[:,:] = sens
+   sigv_out[:,:] = sigv
+   asen_out[:,:] = abs(sigv)
+
+   ncfile.close()
