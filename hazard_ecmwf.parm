@@ -36,8 +36,8 @@ precip_hour_2=[72, 84, 96, 108, 120]
 
 [metric]
 static_fields_file=/rt11/torn/JHT/landmask_ecmwf_0p2.grb2
-int_track_fhr1=24
-int_track_fhr2=120
+track_eof_hour_init=24
+track_eof_hour_final=120
 track_eof_member_frac = 0.3 
 intensity_eof_hour_final=96
 intensity_eof_member_frac = 0.3
@@ -80,7 +80,7 @@ rawin_mark_size=6
 rawin_mark_color=gray
 range_rings=False
 ring_values=[300,600,900,1200]
-output_sens=True
+output_sens=False
 nhc_sens=True
 zero_non_sig_sens=True
 plot_summary=True
