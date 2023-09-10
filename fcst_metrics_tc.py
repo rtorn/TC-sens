@@ -590,9 +590,9 @@ class ComputeForecastMetrics:
 
         esign = self.config['metric'].get('track_eof_esign', 1.0)
 
-        fhr1 = self.config['metric'].get('track_eof_hour_init', 24)
-        fint = self.config['metric'].get('track_eof_hour_int', 6)
-        fhr2 = self.config['metric'].get('track_eof_hour_final', 120)
+        fhr1 = int(self.config['metric'].get('track_eof_hour_init', 24))
+        fint = int(self.config['metric'].get('track_eof_hour_int', 6))
+        fhr2 = int(self.config['metric'].get('track_eof_hour_final', 120))
 
         ntimes = int((fhr2-fhr1) / fint) + 1
 
@@ -645,7 +645,7 @@ class ComputeForecastMetrics:
         pc1[:] = pc1[:] / np.std(pc1)
 
         f1 = 0
-        f2 = 120
+        f2 = np.max([120, fhr2])
         ntimes = int((f2-f1) / 6.) + 1
 
         m_lat   = np.zeros(ntimes)
@@ -962,7 +962,7 @@ class ComputeForecastMetrics:
         pc1[:] = pc1[:] / np.std(pc1)        
 
         f1 = 0
-        f2 = 120
+        f2 = np.max([120, fhr2])
         ntimes = int((f2-f1) / 6.) + 1
 
         m_fhr   = np.zeros(ntimes)
@@ -1172,7 +1172,7 @@ class ComputeForecastMetrics:
         pc1[:] = pc1[:] / np.std(pc1)
 
         f1 = 0
-        f2 = 120
+        f2 = np.max([120, fhr2])
         ntimes = int((f2-f1) / 6.) + 1
 
         m_lat   = np.zeros(ntimes)
@@ -2172,24 +2172,29 @@ class ComputeForecastMetrics:
         metname = 'wndeof'
         eofn = 1
 
+        logging.warning('  Wind EOF Metric:')
+
         infile = self.config['metric'].get('wind_speed_metric_file').format(self.datea_str,self.storm)
 
-        try:
-           conf = configparser.ConfigParser()
-           conf.read(infile)
-           fhr1 = int(conf['definition'].get('forecast_hour1',fhr1))
-           fhr2 = int(conf['definition'].get('forecast_hour2',fhr2))
-           lat1 = float(conf['definition'].get('latitude_min','-9999.'))
-           lat2 = float(conf['definition'].get('latitude_max','-9999.'))
-           lon1 = float(conf['definition'].get('longitude_min','-9999.'))
-           lon2 = float(conf['definition'].get('longitude_max','-9999.'))
-           tcmet = eval(conf['definition'].get('adapt',str(tcmet)))
-           tcmet_buff = float(conf['definition'].get('dom_buffer',tcmet_buff))
-           mask_land = eval(conf['definition'].get('land_mask',mask_land))
-           metname = conf['definition'].get('metric_name',metname)
-           eofn = int(conf['definition'].get('eof_number',eofn))
-        except:
-           logging.warning('  {0} does not exist.  Using default/namelist values'.format(infile))
+        if os.path.isfile(infile):
+           try:
+              conf = configparser.ConfigParser()
+              conf.read(infile)
+              fhr1 = int(conf['definition'].get('forecast_hour1',fhr1))
+              fhr2 = int(conf['definition'].get('forecast_hour2',fhr2))
+              lat1 = float(conf['definition'].get('latitude_min','-9999.'))
+              lat2 = float(conf['definition'].get('latitude_max','-9999.'))
+              lon1 = float(conf['definition'].get('longitude_min','-9999.'))
+              lon2 = float(conf['definition'].get('longitude_max','-9999.'))
+              tcmet = eval(conf['definition'].get('adapt',str(tcmet)))
+              tcmet_buff = float(conf['definition'].get('dom_buffer',tcmet_buff))
+              mask_land = eval(conf['definition'].get('land_mask',mask_land))
+              metname = conf['definition'].get('metric_name',metname)
+              eofn = int(conf['definition'].get('eof_number',eofn))
+           except:
+              logging.warning('  Error reading {0}.  Using parameter and/or default values'.format(infile))
+        else:
+           logging.warning('  {0} does not exist.  Using parameter and/or default values'.format(infile))
 
 
         #  Check to make sure that bounds are defined correctly if not using TC-based metric.
@@ -2277,8 +2282,7 @@ class ComputeForecastMetrics:
            gwght = g1.read_grib_field('zonal_wind_10m', 0, vDict).squeeze()
            gwght[:,:] = 1.
 
-        logging.warning('  Wind EOF Metric:')
-        logging.warning('    Forecast Hours: {0}-{1}'.format(fhr1,fhr2))
+        logging.warning('  Metric Bounds, Hours: {0}-{1}, Lat: {2}-{3}, Lon: {4}-{5}'.format(fhr1,fhr2,lat1,lat2,lon1,lon2))
 
         #  Create the ensemble array
         ensmat = g1.create_ens_array('zonal_wind_10m', self.nens, vDict)
@@ -2334,7 +2338,7 @@ class ComputeForecastMetrics:
         pc1 = np.squeeze(pcout[:,eofn-1])
         pc1[:] = pc1[:] / np.std(pc1)
 
-        #  Compute the precipitation pattern associated with a 1 PC perturbation
+        #  Compute the wind speed pattern associated with a 1 PC perturbation
         dwnd = np.zeros(e_mean.shape)
 
         for n in range(self.nens):
@@ -2345,8 +2349,6 @@ class ComputeForecastMetrics:
         if np.sum(dwnd) < 0.:
            pc1[:]    = -pc1[:]
            dwnd[:,:] = -dwnd[:,:]
-
-        gridInt = 5
 
         #  Create basic figure, including political boundaries and grid lines
         fig = plt.figure(figsize=(11,8.5))
@@ -2363,8 +2365,7 @@ class ComputeForecastMetrics:
 
         pltb = plt.contour(ensmat.longitude.values,ensmat.latitude.values,gwght,[0.5],linewidths=2.5, colors='0.4', zorder=10, transform=ccrs.PlateCarree())
 
-        wndfac = np.ceil(np.max(dwnd) / 5.0)
-        cntrs = np.array([-5., -4., -3., -2., -1., 1., 2., 3., 4., 5]) * wndfac
+        cntrs = np.array([-5., -4., -3., -2., -1., 1., 2., 3., 4., 5]) * np.ceil(np.max(dwnd) / 5.0)
         pltm = plt.contour(ensmat.longitude.values,ensmat.latitude.values,dwnd,cntrs,linewidths=1.5, colors='k', zorder=10, transform=ccrs.PlateCarree())
 
         #  Add colorbar to the plot
@@ -2388,20 +2389,20 @@ class ComputeForecastMetrics:
         plt.savefig('{0}/metric.png'.format(outdir), format='png', dpi=120, bbox_inches='tight')
         plt.close(fig)
 
-        f_met_wndeof_nc = {'coords': {},
-                           'attrs': {'FORECAST_METRIC_LEVEL': '',
-                                     'FORECAST_METRIC_NAME': 'wind speed PC',
-                                     'FORECAST_METRIC_SHORT_NAME': 'wndeof'},
-                             'dims': {'num_ens': self.nens},
-                             'data_vars': {'fore_met_init': {'dims': ('num_ens',),
-                                                            'attrs': {'units': '',
-                                                                      'description': 'wind speed PC'},
-                                                            'data': pc1.data}}}
+        fmetatt = {'FORECAST_METRIC_LEVEL': '', 'FORECAST_METRIC_NAME': 'wind speed PC', 'FORECAST_METRIC_SHORT_NAME': 'wndeof', \
+                   'FORECAST_HOUR1': int(fhr1), 'FORECAST_HOUR2': int(fhr2), 'LATITUDE1': lat1, 'LATITUDE2': lat2, 'LONGITUDE1': lon1, \
+                   'LONGITUDE2': lon2, 'LAND_MASK': str(mask_land), 'ADAPT': str(tcmet), 'DOM_BUFFER': tcmet_buff, \
+                   'EOF_NUMBER': int(eofn)}
 
-        xr.Dataset.from_dict(f_met_wndeof_nc).to_netcdf(
-            "{0}/{1}_f{2}_{3}.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2, metname), encoding={'fore_met_init': {'dtype': 'float32'}})
+        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens}, \
+                 'data_vars': {'fore_met_init': {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'wind speed PC'}, 'data': pc1.data}}}
+
+        xr.Dataset.from_dict(f_met).to_netcdf(
+            "{0}/{1}_f{2}_{3}.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2,metname), encoding={'fore_met_init': {'dtype': 'float32'}})
 
         self.metlist.append('f{0}_{1}'.format('%0.3i' % fhr2, metname))
+
+        del f_met
 
 
 if __name__ == "__main__":
