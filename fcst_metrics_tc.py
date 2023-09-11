@@ -885,22 +885,19 @@ class ComputeForecastMetrics:
         plt.close(fig)
 
         #  Create xarray object of forecast metric, write to file.
-        f_met_trackeof_nc = {'coords': {},
-                             'attrs': {'FORECAST_METRIC_LEVEL': '',
-                                       'FORECAST_METRIC_NAME': 'integrated track PC',
-                                       'FORECAST_METRIC_SHORT_NAME': 'trackeof',
-                                       'X_DIRECTION_VECTOR': imsum,
-                                       'Y_DIRECTION_VECTOR': jmsum},
-                             'dims': {'num_ens': self.nens},
-                             'data_vars': {'fore_met_init': {'dims': ('num_ens',),
-                                                            'attrs': {'units': '',
-                                                                      'description': 'integrated track PC'},
-                                                            'data': np.squeeze(pc1)}}}
+        fmetatt = {'FORECAST_METRIC_LEVEL': '', 'FORECAST_METRIC_NAME': 'integrated track PC', 'FORECAST_METRIC_SHORT_NAME': 'trackeof', \
+                   'FORECAST_HOUR1': int(fhr1), 'FORECAST_HOUR2': int(fhr2), 'X_DIRECTION_VECTOR': imsum, 'Y_DIRECTION_VECTOR': jmsum,  \
+                   'EOF_NUMBER': int(1), 'FRACTION_VARIANCE': solver.varianceFraction(neigs=1), 'MIN_ENSEMBLE': int(ens_min)}
 
-        xr.Dataset.from_dict(f_met_trackeof_nc).to_netcdf(
-            self.outdir + "/{0}_f{1}_intmajtrack.nc".format(str(self.datea_str), '%0.3i' % fhr2), encoding={'fore_met_init': {'dtype': 'float32'}})
+        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens}, \
+                 'data_vars': {'fore_met_init': {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'integrated track PC'}, 'data': pc1.data}}}
+
+        xr.Dataset.from_dict(f_met).to_netcdf(
+            "{0}/{1}_f{2}_intmajtrack.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2), encoding={'fore_met_init': {'dtype': 'float32'}})
 
         self.metlist.append('f{0}_intmajtrack'.format('%0.3i' % fhr2))
+
+        del f_met
 
 
     def __intensity_eof(self):
