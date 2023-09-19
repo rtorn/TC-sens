@@ -574,6 +574,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
 #         if plotDict.get('output_sens', 'False')=='True' and 'intmajtrack' in metname:
 #            writeSensFile(lat, lon, fhr, emea, sens, sigv, '{0}/{1}/{0}_f{2}_vor{3}hPa_sens.nc'.format(datea,bbnn,fhrt,pres), plotDict)
+         if eval(plotDict.get('output_sens', 'False')) and any(ele in metname for ele in ['intmslp', 'wndeof', 'pcpeof']):
+            writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metshort, '{0}/{1}/{3}/{0}_f{2}_vor{4}hPa_sens.nc'.format(datea,bbnn,fhrt,metshort,pres), plotDict)
 
          plotDict['meanCntrs'] = np.array([-5.0, -4.0, -3.0, -2.0, -1.5, -1.0, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 15.0, 20.0])
          plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_vor{3}hPa_sens.png'.format(outdir,datea,fhrt,pres), plotDict)
@@ -687,8 +689,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
          os.makedirs(outdir, exist_ok=True)
 
       stceDict['plotTitle'] = '{0} precip., init: {1}, valid: {2} (Hour: {3})'.format(config['storm'],datea,datef,fhrt)
-      stceDict['plotLegend'] = ['Steering Vorticity', '500-850 hPa qvap', 'IVT']
-      plotSummarySens(lat, lon, usteer, vsteer, svsens, q58sens, ivsens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
+      stceDict['plotLegend'] = ['IVT', 'Steering Vorticity', '500-850 hPa qvap']
+      plotSummarySens(lat, lon, usteer, vsteer, ivsens, svsens, q58sens, '{0}/{1}_f{2}_summ_sens.png'.format(outdir,datea,fhrt), stceDict)
 
 
 def plotSummarySens(lat, lon, usteer, vsteer, f1sens, f2sens, f3sens, fileout, plotDict):
