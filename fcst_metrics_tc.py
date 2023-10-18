@@ -1909,58 +1909,24 @@ class ComputeForecastMetrics:
            fmgrid[:,:] = 0.0
            fmgrid[jcen,icen] = 1.0
 
-           #  Progressively expand domain to find area
-           for r in range(1,max(nlon,nlat)):
+           iloc       = np.zeros(nlon*nlat, dtype=int)
+           jloc       = np.zeros(nlon*nlat, dtype=int)
+           nloc       = 0
+           iloc[nloc] = icen
+           jloc[nloc] = jcen
 
-              i1 = max(icen-r,0)
-              i2 = min(icen+r,nlon-1)
-              j1 = max(jcen-r,0)
-              j2 = min(jcen+r,nlat-1)
-              nring = 0
-       
-              #  Evaluate points at the bottom of the square
-              jj1 = np.maximum(j1-1,0)
-              jj2 = np.minimum(j1+2,nlat)
-              for i in range(i1, i2+1):
-                 ii1 = np.maximum(i-1,0)
-                 ii2 = np.minimum(i+2,nlon)
-                 if e_mean[j1,i] >= pcpmin and lmask[j1,i] >= lmaskmin and np.any(fmgrid[jj1:jj2,ii1:ii2] > 0.):
-                    nring = nring + 1
-                    fmgrid[j1,i] = 1.
+           k = 0
+           while k <= nloc:
 
-              #  Evaluate points at the top of the square
-              jj1 = np.maximum(j2-1,0)
-              jj2 = np.minimum(j2+2,nlat)
-              for i in range(i1, i2+1):
-                 ii1 = np.maximum(i-1,0)
-                 ii2 = np.minimum(i+2,nlon)
-                 if e_mean[j2,i] >= pcpmin and lmask[j2,i] >= lmaskmin and np.any(fmgrid[jj1:jj2,ii1:ii2] > 0.):
-                    nring = nring + 1
-                    fmgrid[j2,i] = 1.
+              for i in range(max(iloc[k]-1,0), min(iloc[k]+2,nlon)):
+                 for j in range(max(jloc[k]-1,0), min(jloc[k]+2,nlat)):
+                    if e_mean[j,i] >= pcpmin and lmask[j,i] >= lmaskmin and fmgrid[j,i] < 1.0:
+                       nloc = nloc + 1
+                       iloc[nloc] = i
+                       jloc[nloc] = j
+                       fmgrid[j,i] = 1.0
 
-              #  Evaluate points on the left side of square
-              ii1 = np.maximum(i1-1,0)
-              ii2 = np.minimum(i1+2,nlon)
-              for j in range(j1, j2+1):
-                 jj1 = np.maximum(j-1,0)
-                 jj2 = np.minimum(j+2,nlat)
-                 if e_mean[j,i1] >= pcpmin and lmask[j,i1] >= lmaskmin and np.any(fmgrid[jj1:jj2,ii1:ii2] > 0.):
-                    nring = nring + 1
-                    fmgrid[j,i1] = 1.
-
-              #  Evaluate points on the right side of square
-              ii1 = np.maximum(i2-1,0)
-              ii2 = np.minimum(i2+2,nlon)
-              for j in range(j1, j2+1):
-                 jj1 = np.maximum(j-1,0)
-                 jj2 = np.minimum(j+2,nlat)
-                 if e_mean[j,i2] >= pcpmin and lmask[j,i2] >= lmaskmin and np.any(fmgrid[jj1:jj2,ii1:ii2] > 0.):
-                    nring = nring + 1
-                    fmgrid[j,i2] = 1.
-
-              #  Stop searching if no points were added
-              if nring == 0:
-                 break
+              k = k + 1
 
            #  Evaluate whether the forecast metric grid has enough land points
            if np.sum(fmgrid) <= 1.0:
