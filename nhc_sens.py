@@ -774,7 +774,7 @@ def plotSummarySens(lat, lon, usteer, vsteer, f1sens, f2sens, f3sens, fileout, p
    plt.close(fig)
 
 
-def writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metname, sensfile, plotDict):
+def writeNHCSensFile(lat, lon, fhr, emean, sens, sigv, metname, sensfile, plotDict):
    '''
    Routine that writes a netCDF file that includes the ensemble-mean forecast field, 
    sensitivity, and measure of statistical significance.  This file can be ingested into
@@ -785,7 +785,7 @@ def writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metname, sensfile, plotDic
       lat       (float):  Vector of latitude values
       lon       (float):  Vector of longitude values
       fhr         (int):  Forecast hour
-      emea      (float):  2D array of the ensemble-mean field
+      emean     (float):  2D array of the ensemble-mean field
       sens      (float):  2D array of sensitivity field
       sigv      (float):  2D array of statistical significance
       sensfile (string):  Name of netCDF file
@@ -829,8 +829,8 @@ def writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metname, sensfile, plotDic
    #  Create other variables
    emea_out = ncfile.createVariable('{0}_ensemble_mean'.format(metname),np.float32,('lat','lon'))
    emea_out.description = 'ensemble mean'
-   if hasattr(emea, 'units'):
-      emea_out.units = emea.units
+   if hasattr(emean, 'units'):
+      emea_out.units = emean.units
    sens_out = ncfile.createVariable('{0}_sensitivity'.format(metname),np.float32,('lat','lon'))
    sens_out.description = 'regression coefficient'
    if 'metricUnits' in plotDict:
@@ -849,7 +849,7 @@ def writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metname, sensfile, plotDic
    lon_out[:]    = lon
    fhr_out[:]    = fhr
 
-   emea_out[:,:] = emea
+   emea_out[:,:] = emean
    sens_out[:,:] = sens
    sigv_out[:,:] = sigv
    asen_out[:,:] = abs(sigv)
