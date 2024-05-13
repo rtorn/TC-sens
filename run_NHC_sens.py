@@ -42,6 +42,8 @@ def read_config(datea, storm, filename):
     confin.read(filename)
 
     config = {}
+    config['model']       = confin['model']
+    config['locations']   = confin['locations']
     config['vitals_plot'] = confin['vitals_plot']
     config['metric']      = confin['metric']
     config['fields']      = confin['fields']
@@ -54,6 +56,9 @@ def read_config(datea, storm, filename):
     config['work_dir']   = '{0}/{1}.{2}'.format(config['work_dir'],datea,storm)
     config['output_dir'] = '{0}/{1}.{2}'.format(config['output_dir'],datea,storm)
     config['figure_dir'] = '{0}/{1}.{2}'.format(config['figure_dir'],datea,storm)
+    config['locations']['work_dir']   = '{0}/{1}.{2}'.format(config['locations']['work_dir'],datea,storm)
+    config['locations']['output_dir'] = '{0}/{1}.{2}'.format(config['locations']['output_dir'],datea,storm)
+    config['locations']['figure_dir'] = '{0}/{1}.{2}'.format(config['locations']['figure_dir'],datea,storm)
     config['storm']      = storm
 
     #  Create appropriate directories
