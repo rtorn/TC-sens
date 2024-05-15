@@ -41,19 +41,13 @@ def ComputeTCFields(datea, fhr, atcf, config):
     lon1 = float(config['fields'].get('min_lon','-180.'))
     lon2 = float(config['fields'].get('max_lon','-10.'))
 
-    if not 'min_lat' in config:
-       config.update({'min_lat': lat1})
-       config.update({'max_lat': lat2})
-       config.update({'min_lon': lon1})
-       config.update({'max_lon': lon2})
-
     nens = int(len(atcf.atcf_files))
     datea_dt = dt.datetime.strptime(datea, '%Y%m%d%H')
     fff = str(fhr + 1000)[1:]
     datef_dt = datea_dt + dt.timedelta(hours=fhr)
     datef = datef_dt.strftime("%m%d%H%M")
 
-    dpp = importlib.import_module(config['io_module'])
+    dpp = importlib.import_module(config['model']['io_module'])
 
     logging.warning("Computing hour {0} ensemble fields".format(fff))
 
@@ -85,10 +79,10 @@ def ComputeTCFields(datea, fhr, atcf, config):
                'longitude': {'dtype': 'float32'}, 'ensemble': {'dtype': 'int32'}}
 
     #  Compute steering wind components
-    uoutfile='{0}/{1}_f{2}_usteer_ens.nc'.format(config['work_dir'],datea,fff)
-    voutfile='{0}/{1}_f{2}_vsteer_ens.nc'.format(config['work_dir'],datea,fff)
-    stfnfile='{0}/{1}_f{2}_ssteer_ens.nc'.format(config['work_dir'],datea,fff)
-    vortfile='{0}/{1}_f{2}_csteer_ens.nc'.format(config['work_dir'],datea,fff)
+    uoutfile='{0}/{1}_f{2}_usteer_ens.nc'.format(config['locations']['work_dir'],datea,fff)
+    voutfile='{0}/{1}_f{2}_vsteer_ens.nc'.format(config['locations']['work_dir'],datea,fff)
+    stfnfile='{0}/{1}_f{2}_ssteer_ens.nc'.format(config['locations']['work_dir'],datea,fff)
+    vortfile='{0}/{1}_f{2}_csteer_ens.nc'.format(config['locations']['work_dir'],datea,fff)
     if (not os.path.isfile(uoutfile) or not os.path.isfile(voutfile)) and config['fields'].get('calc_uvsteer','True') == 'True':
 
        logging.warning("  Computing steering wind information")
@@ -202,7 +196,7 @@ def ComputeTCFields(datea, fhr, atcf, config):
        for level in height_list:
 
           levstr = '%0.3i' % int(level)
-          outfile='{0}/{1}_f{2}_h{3}hPa_ens.nc'.format(config['work_dir'],datea,fff,levstr)
+          outfile='{0}/{1}_f{2}_h{3}hPa_ens.nc'.format(config['locations']['work_dir'],datea,fff,levstr)
 
           if not os.path.isfile(outfile):
 
@@ -234,7 +228,7 @@ def ComputeTCFields(datea, fhr, atcf, config):
        for level in pv_list:
 
           levstr = '%0.3i' % int(level)
-          outfile='{0}/{1}_f{2}_pv{3}hPa_ens.nc'.format(config['work_dir'],datea,fff,levstr)
+          outfile='{0}/{1}_f{2}_pv{3}hPa_ens.nc'.format(config['locations']['work_dir'],datea,fff,levstr)
 
           if not os.path.isfile(outfile):
 
@@ -296,7 +290,7 @@ def ComputeTCFields(datea, fhr, atcf, config):
        for level in thetae_list:
 
           levstr = '%0.3i' % int(level)
-          outfile='{0}/{1}_f{2}_e{3}hPa_ens.nc'.format(config['work_dir'],datea,fff,levstr)
+          outfile='{0}/{1}_f{2}_e{3}hPa_ens.nc'.format(config['locations']['work_dir'],datea,fff,levstr)
 
           if not os.path.isfile(outfile):
 
@@ -331,7 +325,7 @@ def ComputeTCFields(datea, fhr, atcf, config):
 
 
     #  Compute the 500-850 hPa water vapor mixing ratio (if desired and file is missing)
-    outfile='{0}/{1}_f{2}_q500-850hPa_ens.nc'.format(config['work_dir'],datea,fff)
+    outfile='{0}/{1}_f{2}_q500-850hPa_ens.nc'.format(config['locations']['work_dir'],datea,fff)
     if (not os.path.isfile(outfile) and config['fields'].get('calc_q500-850hPa','False') == 'True'):
 
        logging.warning("  Computing 500-850 hPa Water Vapor")
@@ -368,7 +362,7 @@ def ComputeTCFields(datea, fhr, atcf, config):
 
 
     #  Compute the IVT (if desired and file is missing)
-    outfile='{0}/{1}_f{2}_ivt_ens.nc'.format(config['work_dir'],datea,fff)
+    outfile='{0}/{1}_f{2}_ivt_ens.nc'.format(config['locations']['work_dir'],datea,fff)
     if (not os.path.isfile(outfile) and config['fields'].get('calc_ivt','True') == 'True'):
 
        logging.warning("  Computing IVT")
@@ -427,8 +421,8 @@ def ComputeTCFields(datea, fhr, atcf, config):
        for level in wind_list:
 
           levstr = '%0.3i' % int(level)
-          ufile='{0}/{1}_f{2}_u{3}hPa_ens.nc'.format(config['work_dir'],datea,fff,levstr)
-          vfile='{0}/{1}_f{2}_v{3}hPa_ens.nc'.format(config['work_dir'],datea,fff,levstr)
+          ufile='{0}/{1}_f{2}_u{3}hPa_ens.nc'.format(config['locations']['work_dir'],datea,fff,levstr)
+          vfile='{0}/{1}_f{2}_v{3}hPa_ens.nc'.format(config['locations']['work_dir'],datea,fff,levstr)
 
           if (not os.path.isfile(ufile)) or (not os.path.isfile(vfile)):
 
@@ -475,7 +469,7 @@ def ComputeTCFields(datea, fhr, atcf, config):
        for level in vor_list:
 
           levstr = '%0.3i' % int(level)
-          outfile='{0}/{1}_f{2}_vor{3}hPa_ens.nc'.format(config['work_dir'],datea,fff,levstr)
+          outfile='{0}/{1}_f{2}_vor{3}hPa_ens.nc'.format(config['locations']['work_dir'],datea,fff,levstr)
 
           if not os.path.isfile(outfile):
 

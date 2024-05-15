@@ -140,9 +140,9 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
    #  Obtain the metric information (here read from file)
    try:
-      mfile = nc.Dataset('{0}/{1}_{2}.nc'.format(config['work_dir'],datea,metname))
+      mfile = nc.Dataset('{0}/{1}_{2}.nc'.format(config['locations']['work_dir'],datea,metname))
    except IOError:
-      logging.error('{0}/{1}_{2}.nc does not exist'.format(config['work_dir'],datea,metname))
+      logging.error('{0}/{1}_{2}.nc does not exist'.format(config['locations']['work_dir'],datea,metname))
       return
 
    metric = mfile.variables['fore_met_init'][:]
@@ -190,8 +190,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
          os.makedirs('{0}/{1}/{2}'.format(datea,bbnn,metshort), exist_ok=True)
 
    #  Read the ensemble zonal and meridional steering wind, compute ensemble mean
-   ufile = '{0}/{1}_f{2}_usteer_ens.nc'.format(config['work_dir'],datea,fhrt)
-   vfile = '{0}/{1}_f{2}_vsteer_ens.nc'.format(config['work_dir'],datea,fhrt)
+   ufile = '{0}/{1}_f{2}_usteer_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
+   vfile = '{0}/{1}_f{2}_vsteer_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
    if pltlist['steer'] and os.path.isfile(ufile) and os.path.isfile(vfile):
 
       ds = xr.open_dataset(ufile)
@@ -218,7 +218,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens, sigv = computeSens(uens, usteer, uvar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(uvar[:,:])
 
-      outdir = '{0}/{1}/sens/usteer'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/usteer'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -229,7 +229,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0 and tc_in_dom:
-         outdir = '{0}/{1}/sens_sc/usteer'.format(config['figure_dir'],metname)
+         outdir = '{0}/{1}/sens_sc/usteer'.format(config['locations']['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
@@ -240,7 +240,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens, sigv = computeSens(vens, vsteer, vvar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(vvar[:,:])
 
-      outdir = '{0}/{1}/sens/vsteer'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/vsteer'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -251,7 +251,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0 and tc_in_dom:
-         outdir = '{0}/{1}/sens_sc/vsteer'.format(config['figure_dir'],metname)
+         outdir = '{0}/{1}/sens_sc/vsteer'.format(config['locations']['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
@@ -267,7 +267,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
       masens = sens[:,:]
 
-      outdir = '{0}/{1}/sens/masteer'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/masteer'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -279,7 +279,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0 and tc_in_dom:
-         outdir = '{0}/{1}/sens_sc/masteer'.format(config['figure_dir'],metname)
+         outdir = '{0}/{1}/sens_sc/masteer'.format(config['locations']['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
@@ -287,7 +287,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
 
    #  Read steering flow streamfunction, compute sensitivity to that field, if the file exists
-   ensfile = '{0}/{1}_f{2}_ssteer_ens.nc'.format(config['work_dir'],datea,fhrt)
+   ensfile = '{0}/{1}_f{2}_ssteer_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
    if pltlist['steer'] and os.path.isfile(ensfile):
 
       ds = xr.open_dataset(ensfile)
@@ -301,7 +301,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens, sigv = computeSens(ens, emea, evar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
 
-      outdir = '{0}/{1}/sens/ssteer'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/ssteer'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -309,7 +309,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_ssteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0 and tc_in_dom:
-         outdir = '{0}/{1}/sens_sc/ssteer'.format(config['figure_dir'],metname)
+         outdir = '{0}/{1}/sens_sc/ssteer'.format(config['locations']['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
@@ -318,7 +318,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
 
    #  Read steering flow vorticity, compute sensitivity to that field, if the file exists
-   ensfile = '{0}/{1}_f{2}_csteer_ens.nc'.format(config['work_dir'],datea,fhrt)
+   ensfile = '{0}/{1}_f{2}_csteer_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
    if pltlist['steer'] and os.path.isfile(ensfile):
 
       ds = xr.open_dataset(ensfile)
@@ -333,7 +333,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
       svsens = sens[:,:]
 
-      outdir = '{0}/{1}/sens/csteer'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/csteer'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -346,7 +346,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_csteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0 and tc_in_dom:
-         outdir = '{0}/{1}/sens_sc/csteer'.format(config['figure_dir'],metname)
+         outdir = '{0}/{1}/sens_sc/csteer'.format(config['locations']['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
@@ -355,7 +355,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
 
    #  Read 250 hPa PV, compute sensitivity to that field, if the file exists
-   ensfile = '{0}/{1}_f{2}_pv250hPa_ens.nc'.format(config['work_dir'],datea,fhrt)
+   ensfile = '{0}/{1}_f{2}_pv250hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
    if pltlist['pv250'] and os.path.isfile(ensfile): 
       
       ds = xr.open_dataset(ensfile)
@@ -370,7 +370,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
       pvsens = sens[:,:]
 
-      outdir = '{0}/{1}/sens/pv250hPa'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/pv250hPa'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -382,7 +382,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
 
    #  Read 850 hPa PV, compute sensitivity to that field, if the file exists
-   ensfile = '{0}/{1}_f{2}_pv850hPa_ens.nc'.format(config['work_dir'],datea,fhrt)
+   ensfile = '{0}/{1}_f{2}_pv850hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
    if pltlist['pv850'] and os.path.isfile(ensfile):
 
       ds = xr.open_dataset(ensfile)
@@ -396,7 +396,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens, sigv = computeSens(ens, emea, evar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
 
-      outdir = '{0}/{1}/sens/pv850hPa'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/pv850hPa'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -411,7 +411,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       del plotDict['clabel_fmt']
 
       if e_cnt > 0 and tc_in_dom:
-         outdir = '{0}/{1}/sens_sc/pv850hPa'.format(config['figure_dir'],metname)
+         outdir = '{0}/{1}/sens_sc/pv850hPa'.format(config['locations']['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
@@ -422,7 +422,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
 
    #  Read 850 hPa theta-e, compute sensitivity to that field
-   ensfile = '{0}/{1}_f{2}_ivt_ens.nc'.format(config['work_dir'],datea,fhrt)
+   ensfile = '{0}/{1}_f{2}_ivt_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
    if pltlist['ivt'] and os.path.isfile(ensfile):
 
       ds = xr.open_dataset(ensfile)
@@ -437,7 +437,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
       ivsens = sens[:,:]
 
-      outdir = '{0}/{1}/sens/ivt'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/ivt'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -450,7 +450,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_ivt_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0 and tc_in_dom:
-         outdir = '{0}/{1}/sens_sc/ivt'.format(config['figure_dir'],metname)
+         outdir = '{0}/{1}/sens_sc/ivt'.format(config['locations']['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
@@ -459,7 +459,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
 
    #  Read 850 hPa theta-e, compute sensitivity to that field
-   ensfile = '{0}/{1}_f{2}_e700hPa_ens.nc'.format(config['work_dir'],datea,fhrt)
+   ensfile = '{0}/{1}_f{2}_e700hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
    if pltlist['e700'] and os.path.isfile(ensfile):
 
       ds = xr.open_dataset(ensfile)
@@ -473,7 +473,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens, sigv = computeSens(ens, emea, evar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
 
-      outdir = '{0}/{1}/sens/e700hPa'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/e700hPa'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -485,7 +485,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
 
    #  Read 850 hPa theta-e, compute sensitivity to that field
-   ensfile = '{0}/{1}_f{2}_e850hPa_ens.nc'.format(config['work_dir'],datea,fhrt)
+   ensfile = '{0}/{1}_f{2}_e850hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
    if pltlist['e850'] and os.path.isfile(ensfile):
 
       ds = xr.open_dataset(ensfile)
@@ -499,7 +499,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens, sigv = computeSens(ens, emea, evar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
 
-      outdir = '{0}/{1}/sens/e850hPa'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/e850hPa'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -511,8 +511,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
 
    #  Read 925 hPa zonal and meridional wind, compute sensitivity
-   ufile = '{0}/{1}_f{2}_u925hPa_ens.nc'.format(config['work_dir'],datea,fhrt)
-   vfile = '{0}/{1}_f{2}_v925hPa_ens.nc'.format(config['work_dir'],datea,fhrt)
+   ufile = '{0}/{1}_f{2}_u925hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
+   vfile = '{0}/{1}_f{2}_v925hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
    if ('pcp' in metname or 'precip' in metname or 'wnd' in metname) and os.path.isfile(ufile) and os.path.isfile(vfile):
 
       ds = xr.open_dataset(ufile)
@@ -532,7 +532,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens, sigv = computeSens(uens, umea, uvar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(uvar[:,:])
 
-      outdir = '{0}/{1}/sens/u925hPa'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/u925hPa'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -541,7 +541,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens, sigv = computeSens(vens, vmea, vvar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(vvar[:,:])
 
-      outdir = '{0}/{1}/sens/v925hPa'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/v925hPa'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -551,7 +551,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
    plist = [850]
    for pres in plist:
 
-      ensfile = '{0}/{1}_f{2}_vor{3}hPa_ens.nc'.format(config['work_dir'],datea,fhrt,pres)
+      ensfile = '{0}/{1}_f{2}_vor{3}hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt,pres)
       if pltlist['vor'] and os.path.isfile(ensfile):
 
          ds = xr.open_dataset(ensfile)
@@ -568,7 +568,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
          if pres == 850:
             vo850sens = sens[:,:]
 
-         outdir = '{0}/{1}/sens/vor{2}hPa'.format(config['figure_dir'],metname,pres)
+         outdir = '{0}/{1}/sens/vor{2}hPa'.format(config['locations']['figure_dir'],metname,pres)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
@@ -582,7 +582,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
 
          if e_cnt > 0 and tc_in_dom:
-            outdir = '{0}/{1}/sens_sc/vor{2}hPa'.format(config['figure_dir'],metname,pres)
+            outdir = '{0}/{1}/sens_sc/vor{2}hPa'.format(config['locations']['figure_dir'],metname,pres)
             if not os.path.isdir(outdir):
                os.makedirs(outdir, exist_ok=True)
 
@@ -591,7 +591,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
 
    #  Read 500 hPa height, compute sensitivity to that field
-   ensfile = '{0}/{1}_f{2}_h500hPa_ens.nc'.format(config['work_dir'],datea,fhrt)
+   ensfile = '{0}/{1}_f{2}_h500hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
    if pltlist['h500'] and os.path.isfile(ensfile):      
 
       ds = xr.open_dataset(ensfile)
@@ -605,7 +605,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens, sigv = computeSens(ens, emea, evar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
 
-      outdir = '{0}/{1}/sens/h500hPa'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/h500hPa'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -616,7 +616,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_h500hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
 
 
-   ensfile = '{0}/{1}_f{2}_q500-850hPa_ens.nc'.format(config['work_dir'],datea,fhrt)
+   ensfile = '{0}/{1}_f{2}_q500-850hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
    if pltlist['q58'] and os.path.isfile(ensfile):
 
       ds = xr.open_dataset(ensfile)
@@ -631,7 +631,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       sens[:,:] = sens[:,:] * np.sqrt(evar[:,:])
       q58sens = sens[:,:]
 
-      outdir = '{0}/{1}/sens/q500-850hPa'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/q500-850hPa'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -644,7 +644,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_q500-850hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0 and tc_in_dom:
-         outdir = '{0}/{1}/sens_sc/q500-850hPa'.format(config['figure_dir'],metname)
+         outdir = '{0}/{1}/sens_sc/q500-850hPa'.format(config['locations']['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
@@ -654,7 +654,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
    if mettype == 'trackeof' and eval(config['sens'].get('plot_summary','False')) and tc_in_dom:
 
-      outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/summ'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -664,7 +664,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
    if mettype == 'inteneof' and eval(config['sens'].get('plot_summary','False')) and tc_in_dom:
 
-      outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/summ'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -674,7 +674,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
    if mettype == 'wndeof' and eval(config['sens'].get('plot_summary','False')) and tc_in_dom:
 
-      outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/summ'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
@@ -684,7 +684,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
 
    if mettype == 'pcpeof' and eval(config['sens'].get('plot_summary','False')) and tc_in_dom:
 
-      outdir = '{0}/{1}/sens/summ'.format(config['figure_dir'],metname)
+      outdir = '{0}/{1}/sens/summ'.format(config['locations']['figure_dir'],metname)
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 

@@ -62,22 +62,22 @@ def read_config(datea, storm, filename):
     config['storm']      = storm
 
     #  Create appropriate directories
-    if not os.path.isdir(config['work_dir']):
+    if not os.path.isdir(config['locations']['work_dir']):
       try:
-        os.makedirs(config['work_dir'])
+        os.makedirs(config['locations']['work_dir'])
       except OSError as e:
         raise e
 
-    if (eval(config.get('archive_metric','False')) or eval(config.get('archive_metric','False')) ) and \
-               (not os.path.isdir(config['output_dir'])):
+    if eval(config['locations'].get('archive_metric','False')) and \
+         (not os.path.isdir(config['locations']['output_dir'])):
       try:
-        os.makedirs(config['output_dir'])
+        os.makedirs(config['locations']['output_dir'])
       except OSError as e:
         raise e
 
-    if not os.path.isdir(config['figure_dir']):
+    if not os.path.isdir(config['locations']['figure_dir']):
       try:
-        os.makedirs(config['figure_dir'])
+        os.makedirs(config['locations']['figure_dir'])
       except OSError as e:
         raise e
 
@@ -126,9 +126,9 @@ def main():
     config = read_config(datea, storm, paramfile)
 
     #  Import the module that contains routines to read ATCF and Grib data specific to the model
-    dpp = importlib.import_module(config['io_module'])
+    dpp = importlib.import_module(config['model']['io_module'])
 
-    os.chdir(config['work_dir'])
+    os.chdir(config['locations']['work_dir'])
 
     #  Set the domain parameters based on basin
     if storm[-1] == "l":
@@ -150,9 +150,9 @@ def main():
 
     for handler in logging.root.handlers[:]:
        logging.root.removeHandler(handler)
-    logging.basicConfig(filename='{0}/{1}_{2}.log'.format(config.get('log_dir','.'),str(datea),storm), \
+    logging.basicConfig(filename='{0}/{1}_{2}.log'.format(config['locations'].get('log_dir','.'),str(datea),storm), \
                         filemode='w', format='%(asctime)s;%(message)s', \
-                        level=getattr(logging, config.get('log_level','INFO').upper(), None))
+                        level=getattr(logging, config['locations'].get('log_level','INFO').upper(), None))
     logging.warning("STARTING SENSITIVITIES for {0} on {1}".format(bbnnyyyy, str(datea)))
 
 
@@ -166,13 +166,13 @@ def main():
 
     #  Read ATCF data into dictionary
     logging.info("Reading ATCF Files")
-    atcf = atools.ReadATCFData('{0}/atcf_*.dat'.format(config['work_dir']))
-    atcf.read_best_data('{0}/b{1}.dat'.format(config['work_dir'],bbnnyyyy))
+    atcf = atools.ReadATCFData('{0}/atcf_*.dat'.format(config['locations']['work_dir']))
+    atcf.read_best_data('{0}/b{1}.dat'.format(config['locations']['work_dir'],bbnnyyyy))
 
 
     #  Plot the ensemble forecast
-    config['vitals_plot']['track_output_dir'] = config['vitals_plot'].get('track_output_dir', config['figure_dir'])
-    config['vitals_plot']['int_output_dir'] = config['vitals_plot'].get('int_output_dir', config['figure_dir'])
+    config['vitals_plot']['track_output_dir'] = config['vitals_plot'].get('track_output_dir', config['locations']['figure_dir'])
+    config['vitals_plot']['int_output_dir'] = config['vitals_plot'].get('int_output_dir', config['locations']['figure_dir'])
     tc.plot_ens_tc_track(atcf, storm, datea, config) 
     tc.plot_ens_tc_intensity(atcf, storm, datea, config)
 
@@ -199,13 +199,13 @@ def main():
     #  Compute forecast fields at each desired time to use in sensitivity calculation
     if eval(config['fields'].get('multiprocessor','False')):
 
-       arglist = [(datea, fhr, atcf, config) for fhr in range(0,int(config['fcst_hour_max'])+int(config['fcst_hour_int']),int(config['fcst_hour_int']))]
+       arglist = [(datea, fhr, atcf, config) for fhr in range(0,int(config['model']['fcst_hour_max'])+int(config['model']['fcst_hour_int']),int(config['model']['fcst_hour_int']))]
        with Pool() as pool:
           results = pool.map(ComputeTCFieldsParallel, arglist)
 
     else:
 
-       for fhr in range(0,int(config['fcst_hour_max'])+int(config['fcst_hour_int']),int(config['fcst_hour_int'])):
+       for fhr in range(0,int(config['model']['fcst_hour_max'])+int(config['model']['fcst_hour_int']),int(config['model']['fcst_hour_int'])):
 
           logging.debug("Computing Fields {0}".format(fhr))
           ComputeTCFields(datea, fhr, atcf, config)          
@@ -222,9 +222,9 @@ def main():
           #  Limit loop over time to forecast metric lead time
           a = metlist[i].split('_')
           fhrstr = a[0]
-          fhrmax = int(np.min([float(fhrstr[1:4]),float(config['fcst_hour_max'])]))
+          fhrmax = int(np.min([float(fhrstr[1:4]),float(config['model']['fcst_hour_max'])]))
 
-          for fhr in range(0,fhrmax+int(config['fcst_hour_int']),int(config['fcst_hour_int'])):
+          for fhr in range(0,fhrmax+int(config['model']['fcst_hour_int']),int(config['model']['fcst_hour_int'])):
 
              fhrarg.append(fhr)
              metarg.append(metlist[i])
@@ -241,34 +241,34 @@ def main():
           #  the sensitivity to fields beyond 72 h
           a = metlist[i].split('_')
           fhrstr = a[0]
-          fhrmax = int(np.min([float(fhrstr[1:4]),float(config['fcst_hour_max'])]))
+          fhrmax = int(np.min([float(fhrstr[1:4]),float(config['model']['fcst_hour_max'])]))
 
-          for fhr in range(0,fhrmax+int(config['fcst_hour_int']),int(config['fcst_hour_int'])):
+          for fhr in range(0,fhrmax+int(config['model']['fcst_hour_int']),int(config['model']['fcst_hour_int'])):
 
              ComputeSensitivity(datea, fhr, metlist[i], atcf, config)
 
 
-    with open('{0}/metric_list'.format(config['work_dir']), 'w') as f:
+    with open('{0}/metric_list'.format(config['locations']['work_dir']), 'w') as f:
        for item in metlist:
           f.write("%s\n" % item)
     f.close()
 
 
     #  Save some of the files, if needed
-    if ( config.get('archive_metric','False') == 'True' ):
+    if ( config['locations'].get('archive_metric','False') == 'True' ):
        for met in metlist:
-          os.rename('{0}/{1}_{2}.nc'.format(config['work_dir'],datea,met), '{0}/.'.format(config['output_dir']))
+          os.rename('{0}/{1}_{2}.nc'.format(config['locations']['work_dir'],datea,met), '{0}/.'.format(config['locations']['output_dir']))
 
-    if ( config.get('archive_fields','False') == 'True' ):
-       os.rename('{0}/\*_ens.nc'.format(config['work_dir']), '{0}/.'.format(config['output_dir']))
+    if ( config['locations'].get('archive_fields','False') == 'True' ):
+       os.rename('{0}/\*_ens.nc'.format(config['locations']['work_dir']), '{0}/.'.format(config['locations']['output_dir']))
 
 
     #  Create a tar file of gridded sensitivity files, if needed
     if eval(config['sens'].get('output_sens', 'False')):
 
-       os.chdir(config['work_dir'])
+       os.chdir(config['locations']['work_dir'])
 
-       tarout = '{0}/{1}.tar'.format(config['outgrid_dir'],datea) 
+       tarout = '{0}/{1}.tar'.format(config['locations']['outgrid_dir'],datea) 
        if ( os.path.isfile(tarout) and tarfile.is_tarfile(tarout) ):
           os.system('tar --skip-old-files -xf {0}'.format(tarout))
 
@@ -277,7 +277,7 @@ def main():
           tar.add(f)
        tar.close()
 
-       tarout = '{0}/{1}.tar'.format(config['outgrid_dir'] + '/../awips',datea)
+       tarout = '{0}/{1}.tar'.format(config['locations']['outgrid_dir'] + '/../awips',datea)
        if ( os.path.isfile(tarout) and tarfile.is_tarfile(tarout) ):
           os.system('tar --skip-old-files -xf {0}'.format(tarout))
 
@@ -286,12 +286,12 @@ def main():
           tar.add(f)
        tar.close()
 
-       shutil.rmtree('{0}/{1}'.format(config['work_dir'],datea))
+       shutil.rmtree('{0}/{1}'.format(config['locations']['work_dir'],datea))
 
     #  Clean up work directory, if desired
-    os.chdir('{0}/..'.format(config['work_dir']))
-    if not eval(config.get('save_work_dir','False')):
-       shutil.rmtree(config['work_dir'])
+    os.chdir('{0}/..'.format(config['locations']['work_dir']))
+    if not eval(config['locations'].get('save_work_dir','False')):
+       shutil.rmtree(config['locations']['work_dir'])
 
 
 def precipitation_ens_maps(datea, fhr1, fhr2, config):
@@ -305,7 +305,7 @@ def precipitation_ens_maps(datea, fhr1, fhr2, config):
         config (dict.):  dictionary that contains configuration options (read from file)
     '''
 
-    dpp = importlib.import_module(config['io_module'])
+    dpp = importlib.import_module(config['model']['io_module'])
 
     lat1 = float(config['vitals_plot'].get('min_lat_precip','22.'))
     lat2 = float(config['vitals_plot'].get('max_lat_precip','50.'))
@@ -318,7 +318,7 @@ def precipitation_ens_maps(datea, fhr1, fhr2, config):
     date1_str = datea_1.strftime("%Y%m%d%H")
     datea_2   = dt.datetime.strptime(datea, '%Y%m%d%H') + dt.timedelta(hours=fhr2)
     date2_str = datea_2.strftime("%Y%m%d%H")
-    fint = int(config.get('input_hour_int','6'))
+    fint = int(config['model'].get('input_hour_int','6'))
 
     #  Read the total precipitation for the beginning of the window
     g2 = dpp.ReadGribFiles(datea, fhr2, config)
@@ -383,7 +383,7 @@ def precipitation_ens_maps(datea, fhr1, fhr2, config):
     plotBase['grid_interval'] = config['vitals_plot'].get('grid_interval', 5)
     plotBase['left_labels'] = 'True'
     plotBase['right_labels'] = 'None'
-    ax1 = background_map(config.get('projection', 'PlateCarree'), lon1, lon2, lat1, lat2, plotBase)
+    ax1 = background_map(config['model'].get('projection', 'PlateCarree'), lon1, lon2, lat1, lat2, plotBase)
 
     #  Plot the mean precipitation map
     mpcp = [0.0, 0.25, 0.50, 1., 1.5, 2., 4., 6., 8., 12., 16., 24., 32., 64., 96., 97.]
@@ -399,7 +399,7 @@ def precipitation_ens_maps(datea, fhr1, fhr2, config):
     plotBase['subnumber']     = 2
     plotBase['left_labels'] = 'None'
     plotBase['right_labels'] = 'None'
-    ax2 = background_map(config.get('projection', 'PlateCarree'), lon1, lon2, lat1, lat2, plotBase)
+    ax2 = background_map(config['model'].get('projection', 'PlateCarree'), lon1, lon2, lat1, lat2, plotBase)
 
     #  Plot the standard deviation of the ensemble precipitation
     spcp = [0., 3., 6., 9., 12., 15., 18., 21., 24., 27., 30., 33., 36., 39., 42., 43.]
@@ -414,7 +414,7 @@ def precipitation_ens_maps(datea, fhr1, fhr2, config):
 
     fig.suptitle('F{0}-F{1} Precipitation ({2}-{3})'.format(fff1, fff2, date1_str, date2_str), fontsize=16)
 
-    outdir = '{0}/std/pcp'.format(config['figure_dir'])
+    outdir = '{0}/std/pcp'.format(config['locations']['figure_dir'])
     if not os.path.isdir(outdir):
        try:
           os.makedirs(outdir, exist_ok=True)

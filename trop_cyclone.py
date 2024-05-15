@@ -194,7 +194,7 @@ def plot_ens_tc_track(atcf, storm, datea, config):
              ax.plot(x_ell, y_ell, color=ellcol[color_index], zorder=12, transform=ccrs.PlateCarree())
              color_index = color_index + 1
    
-    plt.title(config['vitals_plot'].get('title_string',"{0} {1} forecast of {2}".format(str(datea),config.get('model_src',''),storm)))
+    plt.title(config['vitals_plot'].get('title_string',"{0} {1} forecast of {2}".format(str(datea),config['model'].get('model_src',''),storm)))
     
     try:   # Create target Directory
         os.makedirs(output_dir)
@@ -284,7 +284,7 @@ def plot_ens_tc_intensity(atcf, storm, datea, config):
    #  Add plot labels and proper tick marks 
     ax0.set_xlabel("Forecast Hour")
     ax0.set_ylabel("Minimum Pressure (hPa)")
-    plt.title("{0} {1} forecast of {2}".format(str(datea), config.get('model_src',''), storm))
+    plt.title("{0} {1} forecast of {2}".format(str(datea), config['model'].get('model_src',''), storm))
     plt.xticks(range(0,240,24))
     plt.xlim(0, fhrmax)
 

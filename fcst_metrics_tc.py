@@ -73,11 +73,11 @@ class ComputeForecastMetrics:
         self.datea_str = datea
         self.datea = dt.datetime.strptime(datea, '%Y%m%d%H')
         self.datea_s = self.datea.strftime("%m%d%H%M")
-        self.outdir = config['work_dir']
+        self.outdir = config['locations']['work_dir']
         self.storm  = storm
 
         self.metlist = [] 
-        self.dpp = importlib.import_module(config['io_module'])
+        self.dpp = importlib.import_module(config['model']['io_module'])
 
         self.config = config
         self.atcf   = atcf
@@ -781,10 +781,10 @@ class ComputeForecastMetrics:
               minLon = min([minLon, ens_lon[n,t]])
               maxLon = max([maxLon, ens_lon[n,t]])
 
-        minLat = minLat - 2.5
-        maxLat = maxLat + 2.5
-        minLon = minLon - 2.5
-        maxLon = maxLon + 2.5
+        minLat = minLat - 1.0
+        maxLat = maxLat + 1.0
+        minLon = minLon - 1.0
+        maxLon = maxLon + 1.0
 
         trackDict = {}
         trackDict['grid_interval'] = self.config['vitals_plot'].get('grid_interval', 5)
@@ -872,9 +872,9 @@ class ComputeForecastMetrics:
 
         fracvar = '%4.3f' % solver.varianceFraction(neigs=1)
         plt.title(self.config['metric'].get('title_string','{0} {1} forecast of {2}, {3} of variance'.format(self.datea_str, \
-                           self.config.get('model_src',''), self.storm, fracvar)))
+                           self.config['model'].get('model_src',''), self.storm, fracvar)))
 
-        outdir = '{0}/f{1}_intmajtrack'.format(self.config['figure_dir'],'%0.3i' % fhr2)
+        outdir = '{0}/f{1}_intmajtrack'.format(self.config['locations']['figure_dir'],'%0.3i' % fhr2)
         if not os.path.isdir(outdir):
            try:
               os.makedirs(outdir)
@@ -1037,7 +1037,7 @@ class ComputeForecastMetrics:
         ax0.set_ylabel("Minimum Pressure (hPa)")
         fracvar = '%4.3f' % solver.varianceFraction(neigs=1)
         plt.title("{0} {1} forecast of {2}, {3} of variance".format(self.datea_str, \
-                     self.config.get('model_src',''), self.config['storm'], fracvar))
+                     self.config['model'].get('model_src',''), self.config['storm'], fracvar))
         plt.xticks(range(0,240,24))
         plt.xlim(0, 120)
 
@@ -1063,7 +1063,7 @@ class ComputeForecastMetrics:
         plt.xticks(range(0,240,24))
         plt.xlim(0, 120)
 
-        outdir = '{0}/f{1}_intmslp'.format(self.config['figure_dir'],'%0.3i' % fhr2)
+        outdir = '{0}/f{1}_intmslp'.format(self.config['locations']['figure_dir'],'%0.3i' % fhr2)
         if not os.path.isdir(outdir):
            try:
               os.makedirs(outdir)
@@ -1091,10 +1091,10 @@ class ComputeForecastMetrics:
 
     def __track_inten_eof(self):
         '''
-        Function that computes time-integrated track metric, which is calculated by taking the EOF of 
-        the ensemble latitude and longitude for the lead times specified.  The resulting forecast metric is the 
-        principal component of the EOF.  The function also plots a figure showing the TC tracks and the 
-        track perturbation that is consistent with the first EOF. 
+        Function that computes the combination time-integrated track and intensity metric, which is calculated by 
+        taking the EOF of the ensemble latitude, longitude, and MSLP for the lead times specified.  The resulting 
+        forecast metric is the principal component of the EOF.  The function also plots a figure showing the TC 
+        tracks and perturbation, along with the MSLP and MSLP perturbation that is consistent with the EOF. 
         '''
 
         logging.warning('  Computing time-integrated track metric')
@@ -1455,9 +1455,9 @@ class ComputeForecastMetrics:
 
         fracvar = '%4.3f' % solver.varianceFraction(neigs=1)
         fig.suptitle("{0} {1} forecast of {2}, {3} of variance".format(self.datea_str, \
-                           self.config.get('model_src',''), self.storm, fracvar), fontsize=16)
+                           self.config['model'].get('model_src',''), self.storm, fracvar), fontsize=16)
 
-        outdir = '{0}/f{1}_trackint'.format(self.config['figure_dir'],'%0.3i' % fhr2)
+        outdir = '{0}/f{1}_trackint'.format(self.config['locations']['figure_dir'],'%0.3i' % fhr2)
         if not os.path.isdir(outdir):
            try:
               os.makedirs(outdir)
@@ -1678,7 +1678,7 @@ class ComputeForecastMetrics:
 
         fig.suptitle('F{0}-F{1} Precipitation ({2}-{3})'.format(fff1, fff2, date1_str, date2_str), fontsize=16)
 
-        outdir = '{0}/f{1}_precip'.format(self.config['figure_dir'],'%0.3i' % fhr2)
+        outdir = '{0}/f{1}_precip'.format(self.config['locations']['figure_dir'],'%0.3i' % fhr2)
         if not os.path.isdir(outdir):
            try:
               os.makedirs(outdir)
@@ -1705,15 +1705,19 @@ class ComputeForecastMetrics:
     def __precipitation_eof(self):
         '''
         Function that computes precipitation EOF metric, which is calculated by taking the EOF of 
-        the ensemble precipitation forecast over a domain defined by the user in a text file.  
-        The resulting forecast metric is the principal component of the
-        EOF.  The function also plots a figure showing the ensemble-mean precipitation pattern 
+        the ensemble precipitation forecast over a domain either defined in a lat/lon box that is 
+        defined by the user in a text file or via an automated algorithm that looks for contiguous
+        grid points within certain thresholds and over land.
+
+        The resulting forecast metric is the principal component of the EOF.
+        The function also plots a figure showing the ensemble-mean precipitation pattern 
         along with the precipitation perturbation that is consistent with the first EOF. 
         '''
 
+        #  Establish a set of default values based on the configuration file. 
         fhr1 = int(self.config['metric'].get('precip_eof_forecast_hour1','48'))
         fhr2 = int(self.config['metric'].get('precip_eof_forecast_hour2','120'))
-        fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
+        fint = int(self.config['metric'].get('fcst_int',self.config['model']['fcst_hour_int']))
         tcmet_space_dbuff = float(self.config['metric'].get('precip_eof_dom_buffer',300.0))
         lmaskmin = float(self.config['metric'].get('land_mask_minimum','0.2'))
         mask_land = eval(self.config['metric'].get('precip_eof_land_mask','True'))
@@ -1736,8 +1740,8 @@ class ComputeForecastMetrics:
            lon1 = 181.0
            lon2 = -181.0
 
+        #  Read initialization-time specific metric definition file, if it exists, otherwise use defaults
         infile = self.config['metric'].get('precip_metric_file').format(self.datea_str,self.storm)
-
         if os.path.isfile(infile):
            try:
               conf = configparser.ConfigParser()
@@ -2041,7 +2045,7 @@ class ComputeForecastMetrics:
         fracvar = '%4.3f' % solver.varianceFraction(neigs=1)
         plt.title("{0} {1}-{2} hour Precipitation, {3} of variance".format(str(self.datea_str),fhr1,fhr2,fracvar))
 
-        outdir = '{0}/f{1}_{2}'.format(self.config['figure_dir'],'%0.3i' % fhr2,metname)
+        outdir = '{0}/f{1}_{2}'.format(self.config['locations']['figure_dir'],'%0.3i' % fhr2,metname)
         if not os.path.isdir(outdir):
            try:
               os.makedirs(outdir)
@@ -2072,6 +2076,16 @@ class ComputeForecastMetrics:
 
 
     def __read_precip(self, fhr1, fhr2, confgrib, vDict):
+        '''
+        Function that can be used to calculate the precipitation between two forecast time periods.
+        Handles models that have accumulated precipitation over entire forecast, or precipitation in 
+        individual periods of time (i.e., 6 hour blocks)
+
+          fhr1 - starting forecast hour
+          fhr2 - ending forecast hour
+          confgrib - dictionary with model configuration
+          vDict - dictionary with variable information
+        ''' 
 
         g2 = self.dpp.ReadGribFiles(self.datea_str, fhr2, confgrib)
         vDict = g2.set_var_bounds('precipitation', vDict)
@@ -2129,7 +2143,7 @@ class ComputeForecastMetrics:
 
         fhr1 = int(self.config['metric'].get('wind_speed_eof_forecast_hour1','48'))
         fhr2 = int(self.config['metric'].get('wind_speed_eof_forecast_hour2','96'))
-        fint = int(self.config['metric'].get('fcst_int',self.config['fcst_hour_int']))
+        fint = int(self.config['metric'].get('fcst_int',self.config['model']['fcst_hour_int']))
         tcmet_buff = float(self.config['metric'].get('wind_speed_eof_dom_buffer',300.0))
         mask_land = eval(self.config['metric'].get('land_mask','False'))
         tcmet = eval(self.config['metric'].get('wind_speed_eof_adapt','True'))
@@ -2343,7 +2357,7 @@ class ComputeForecastMetrics:
            fracvar = '%4.3f' % solver.varianceFraction(neigs=eofn)[-1]
         plt.title("{0} {1}-{2} hour Max. Wind Speed, {3} of variance".format(str(self.datea_str),fhr1,fhr2,fracvar))
 
-        outdir = '{0}/f{1}_{2}'.format(self.config['figure_dir'], '%0.3i' % fhr2, metname)
+        outdir = '{0}/f{1}_{2}'.format(self.config['locations']['figure_dir'], '%0.3i' % fhr2, metname)
         if not os.path.isdir(outdir):
            try:
               os.makedirs(outdir)
