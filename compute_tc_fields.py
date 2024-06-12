@@ -41,7 +41,7 @@ def ComputeTCFields(datea, fhr, atcf, config):
     lon1 = float(config['fields'].get('min_lon','-180.'))
     lon2 = float(config['fields'].get('max_lon','-10.'))
 
-    nens = int(len(atcf.atcf_files))
+    nens = atcf.num_atcf_files
     datea_dt = dt.datetime.strptime(datea, '%Y%m%d%H')
     fff = str(fhr + 1000)[1:]
     datef_dt = datea_dt + dt.timedelta(hours=fhr)

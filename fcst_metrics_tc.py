@@ -69,7 +69,7 @@ class ComputeForecastMetrics:
         else:
            fhr_list = []
 
-        self.nens = int(len(atcf.atcf_files))
+        self.nens = atcf.num_atcf_files
         self.datea_str = datea
         self.datea = dt.datetime.strptime(datea, '%Y%m%d%H')
         self.datea_s = self.datea.strftime("%m%d%H%M")

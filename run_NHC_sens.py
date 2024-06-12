@@ -166,15 +166,15 @@ def main():
 
     #  Read ATCF data into dictionary
     logging.info("Reading ATCF Files")
-    atcf = atools.ReadATCFData('{0}/atcf_*.dat'.format(config['locations']['work_dir']))
-    atcf.read_best_data('{0}/b{1}.dat'.format(config['locations']['work_dir'],bbnnyyyy))
+    fatcf = atools.ReadATCFData('{0}/atcf_*.dat'.format(config['locations']['work_dir']))
+    batcf = atools.ReadBestData('{0}/b{1}.dat'.format(config['locations']['work_dir'],bbnnyyyy))
 
 
     #  Plot the ensemble forecast
     config['vitals_plot']['track_output_dir'] = config['vitals_plot'].get('track_output_dir', config['locations']['figure_dir'])
     config['vitals_plot']['int_output_dir'] = config['vitals_plot'].get('int_output_dir', config['locations']['figure_dir'])
-    tc.plot_ens_tc_track(atcf, storm, datea, config) 
-    tc.plot_ens_tc_intensity(atcf, storm, datea, config)
+    tc.plot_ens_tc_track(fatcf, batcf, storm, datea, config) 
+    tc.plot_ens_tc_intensity(fatcf, batcf, storm, datea, config)
 
     #  Plot the precipitation forecast
     fhr1 = json.loads(config['vitals_plot'].get('precip_hour_1'))
@@ -186,7 +186,7 @@ def main():
 
     #  Compute TC-related forecast metrics
     logging.info("Computing Forecast Metrics")
-    met = fmtc.ComputeForecastMetrics(datea, storm, atcf, config)
+    met = fmtc.ComputeForecastMetrics(datea, storm, fatcf, config)
     metlist = met.get_metlist()
     print(metlist)
 
@@ -199,7 +199,7 @@ def main():
     #  Compute forecast fields at each desired time to use in sensitivity calculation
     if eval(config['fields'].get('multiprocessor','False')):
 
-       arglist = [(datea, fhr, atcf, config) for fhr in range(0,int(config['model']['fcst_hour_max'])+int(config['model']['fcst_hour_int']),int(config['model']['fcst_hour_int']))]
+       arglist = [(datea, fhr, fatcf, config) for fhr in range(0,int(config['model']['fcst_hour_max'])+int(config['model']['fcst_hour_int']),int(config['model']['fcst_hour_int']))]
        with Pool() as pool:
           results = pool.map(ComputeTCFieldsParallel, arglist)
 
@@ -208,7 +208,7 @@ def main():
        for fhr in range(0,int(config['model']['fcst_hour_max'])+int(config['model']['fcst_hour_int']),int(config['model']['fcst_hour_int'])):
 
           logging.debug("Computing Fields {0}".format(fhr))
-          ComputeTCFields(datea, fhr, atcf, config)          
+          ComputeTCFields(datea, fhr, fatcf, config)          
 
 
     #  Compute sensitivity of each metric to forecast fields at earlier times, as specified by the user
@@ -229,7 +229,7 @@ def main():
              fhrarg.append(fhr)
              metarg.append(metlist[i])
 
-       arglist = [(datea, fhrarg[i], metarg[i], atcf, config) for i in range(len(fhrarg))]
+       arglist = [(datea, fhrarg[i], metarg[i], fatcf, config) for i in range(len(fhrarg))]
        with Pool() as pool:
           results = pool.map(ComputeSensitivityParallel, arglist)
 
@@ -245,7 +245,7 @@ def main():
 
           for fhr in range(0,fhrmax+int(config['model']['fcst_hour_int']),int(config['model']['fcst_hour_int'])):
 
-             ComputeSensitivity(datea, fhr, metlist[i], atcf, config)
+             ComputeSensitivity(datea, fhr, metlist[i], fatcf, config)
 
 
     with open('{0}/metric_list'.format(config['locations']['work_dir']), 'w') as f:

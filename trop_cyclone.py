@@ -7,14 +7,15 @@ import math
 
 from SensPlotRoutines import background_map
 
-def plot_ens_tc_track(atcf, storm, datea, config):
+def plot_ens_tc_track(fatcf, batcf,storm, datea, config):
     '''
     Routine that creates a plot of the ensemble TC tracks over an entire forecast.  The plot can be
     customized using the items in the vitals_plot section of the configuration file.  The result of this
     routine is a plot of the ensemble tracks that will be placed in the graphics output directory.
 
     Attributes:
-        atcf   (class):  ATCF class object that includes ensemble information
+        fatcf  (class):  ATCF class object that includes ensemble information
+        batcf  (class):  ATCF best track class object that includes best track information
         storm (string):  TC name that will go into plot
         datea (string):  Initialization date (yyyymmddhh format)
         config (dict.):  dictionary that contains configuration options (read from file)
@@ -28,7 +29,7 @@ def plot_ens_tc_track(atcf, storm, datea, config):
     fhrmax  = float(config['vitals_plot'].get('forecast_hour_max',120))
 
     ntimes = int(fhrmax / fhrint) + 1
-    nens   = len(atcf.atcf_files)  # total ensembles
+    nens   = fatcf.num_atcf_files  # total number of members
 
     subcolors = ["Blue", "DarkOrange"]
     ellcol = ["#551A8B", "#00FFFF", "#00EE00", "#FF0000", "#FF00FF", "#551A8B", "#00FFFF", "#00EE00", "#FF0000"]
@@ -39,19 +40,19 @@ def plot_ens_tc_track(atcf, storm, datea, config):
     minLon = 360.
     maxLon = -180.
 
-    all_lat  = np.ones([nens, ntimes]) * atcf.missing
-    all_lon  = np.ones([nens, ntimes]) * atcf.missing
+    all_lat  = np.ones([nens, ntimes]) * fatcf.missing
+    all_lon  = np.ones([nens, ntimes]) * fatcf.missing
     fhrvec = np.empty(ntimes) 
 
     for t in range(ntimes):
        fhr = fhrint * t
-       all_lat[:,t], all_lon[:,t] = atcf.ens_lat_lon_time(fhr)
+       all_lat[:,t], all_lon[:,t] = fatcf.ens_lat_lon_time(fhr)
        fhrvec[t] = fhr
 
     #  Figure out the min/max latitude and longitude values
     for n in range(nens):
       for t in range(ntimes):
-        if all_lat[n,t] != atcf.missing and all_lon[n,t] != atcf.missing:
+        if all_lat[n,t] != fatcf.missing and all_lon[n,t] != fatcf.missing:
 
           if storm[-1] == "e" or storm[-1] == "c":
              all_lon[n,t] = (all_lon[n,t] + 360.) % 360.
@@ -78,7 +79,7 @@ def plot_ens_tc_track(atcf, storm, datea, config):
         x = []
         y = []
         for t in range(ntimes):
-           if all_lat[n,t] != atcf.missing and all_lon[n,t] != atcf.missing:
+           if all_lat[n,t] != fatcf.missing and all_lon[n,t] != fatcf.missing:
               y.append(all_lat[n,t])
               x.append(all_lon[n,t])
         if len(x) > 0:
@@ -88,7 +89,7 @@ def plot_ens_tc_track(atcf, storm, datea, config):
     fhrbest = []
     bestlat = []
     bestlon = []
-    if atcf.has_best and plot_best:
+    if batcf.has_best and plot_best:
 
        init = dt.datetime.strptime(datea, '%Y%m%d%H')
 
@@ -97,8 +98,8 @@ def plot_ens_tc_track(atcf, storm, datea, config):
           fhr = fhrint * t
           datef = init + dt.timedelta(hours=fhr)
 
-          lat, lon = atcf.best_lat_lon_time(datef.strftime("%Y%m%d%H"))
-          if lat != atcf.missing:
+          lat, lon = batcf.best_lat_lon_time(datef.strftime("%Y%m%d%H"))
+          if lat != batcf.missing:
 
              fhrbest.append(fhr)
              if storm[-1] == "e" or storm[-1] == "c":
@@ -146,7 +147,7 @@ def plot_ens_tc_track(atcf, storm, datea, config):
              m_lon = 0.0
              pcnt  = 0
              for n in range(nens):
-                 if all_lat[n,t] != atcf.missing and all_lon[n,t] != atcf.missing:
+                 if all_lat[n,t] != fatcf.missing and all_lon[n,t] != fatcf.missing:
                      e_lat[pcnt] = all_lat[n,t]
                      e_lon[pcnt] = all_lon[n,t]
                      m_lat = m_lat + all_lat[n,t]
@@ -207,7 +208,7 @@ def plot_ens_tc_track(atcf, storm, datea, config):
     plt.close()
 
 
-def plot_ens_tc_intensity(atcf, storm, datea, config):
+def plot_ens_tc_intensity(fatcf, batcf, storm, datea, config):
     '''
     Routine that creates a plot of the ensemble TC minimum SLP and maximum wind speed as a function of
     forecast lead time.  The plot can be customized using the items in the vitals_plot section of the 
@@ -215,7 +216,8 @@ def plot_ens_tc_intensity(atcf, storm, datea, config):
     that will be placed in the graphics output directory.
 
     Attributes:
-        atcf   (class):  ATCF class object that includes ensemble information
+        fatcf  (class):  ATCF class object that includes ensemble information
+        batcf  (class):  ATCF best track class object that includes best track information
         storm (string):  TC name that will go into plot
         datea (string):  Initialization date (yyyymmddhh format)
         config (dict.):  dictionary that contains configuration options (read from file)
@@ -227,21 +229,21 @@ def plot_ens_tc_intensity(atcf, storm, datea, config):
     plot_best  = eval(config['vitals_plot'].get('plot_best', 'True'))
 
     ntimes = int(fhrmax / fhrint) + 1
-    nens   = len(atcf.atcf_files)  # total ensembles
+    nens   = fatcf.num_atcf_files  # total ensembles
 
-    all_slp  = np.ones([nens, ntimes]) * atcf.missing
-    all_wnd  = np.ones([nens, ntimes]) * atcf.missing
+    all_slp  = np.ones([nens, ntimes]) * fatcf.missing
+    all_wnd  = np.ones([nens, ntimes]) * fatcf.missing
     fhrvec = np.empty(ntimes)
 
     for t in range(ntimes):
        fhr = fhrint * t
-       all_slp[:,t], all_wnd[:,t] = atcf.ens_intensity_time(fhr)
+       all_slp[:,t], all_wnd[:,t] = fatcf.ens_intensity_time(fhr)
        fhrvec[t] = fhr
 
     fhrbest = []
     bestslp = []
     bestwnd = []
-    if atcf.has_best and plot_best:
+    if batcf.has_best and plot_best:
 
        init = dt.datetime.strptime(datea, '%Y%m%d%H')
 
@@ -250,8 +252,8 @@ def plot_ens_tc_intensity(atcf, storm, datea, config):
           fhr = fhrint * t
           datef = init + dt.timedelta(hours=fhr)
 
-          wnd, slp = atcf.best_intensity_time(datef.strftime("%Y%m%d%H"))
-          if wnd != atcf.missing:
+          wnd, slp = batcf.best_intensity_time(datef.strftime("%Y%m%d%H"))
+          if wnd != batcf.missing:
         
              fhrbest.append(fhr)
              bestslp.append(slp)
@@ -270,7 +272,7 @@ def plot_ens_tc_intensity(atcf, storm, datea, config):
        sens_x = []
        sens_y = []
        for t in range(ntimes):
-          if all_slp[n,t] != atcf.missing:
+          if all_slp[n,t] != fatcf.missing:
              sens_x.append(fhrvec[t])
              sens_y.append(all_slp[n,t])
              minval = min([minval, all_slp[n,t]])
@@ -278,7 +280,7 @@ def plot_ens_tc_intensity(atcf, storm, datea, config):
        ax0.plot(sens_x, sens_y, color='gray')
 
     #  Plot the best track minimum sea-level pressure, if it exists
-    if atcf.has_best and plot_best:
+    if batcf.has_best and plot_best:
        ax0.plot(fhrbest, bestslp, color='black')
 
    #  Add plot labels and proper tick marks 
@@ -295,7 +297,7 @@ def plot_ens_tc_intensity(atcf, storm, datea, config):
        sens_x1 = []
        sens_y1 = []
        for t in range(ntimes):
-          if all_wnd[n,t] != atcf.missing:
+          if all_wnd[n,t] != fatcf.missing:
              sens_x1.append(fhrvec[t])
              sens_y1.append(all_wnd[n,t])
              minval = min([minval, all_wnd[n,t]])
@@ -303,7 +305,7 @@ def plot_ens_tc_intensity(atcf, storm, datea, config):
        ax1.plot(sens_x1, sens_y1, color='gray')
 
     #  Plot the best track maximum wind speed, if it exists
-    if atcf.has_best and plot_best:
+    if batcf.has_best and plot_best:
        ax1.plot(fhrbest, bestwnd, color='black')
 
     #  Add plot labels and proper tick marks
