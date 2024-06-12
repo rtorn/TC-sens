@@ -781,10 +781,10 @@ class ComputeForecastMetrics:
               minLon = min([minLon, ens_lon[n,t]])
               maxLon = max([maxLon, ens_lon[n,t]])
 
-        minLat = minLat - 1.0
-        maxLat = maxLat + 1.0
-        minLon = minLon - 1.0
-        maxLon = maxLon + 1.0
+        minLat = minLat - 2.5
+        maxLat = maxLat + 2.5
+        minLon = minLon - 2.5
+        maxLon = maxLon + 2.5
 
         trackDict = {}
         trackDict['grid_interval'] = self.config['vitals_plot'].get('grid_interval', 5)
