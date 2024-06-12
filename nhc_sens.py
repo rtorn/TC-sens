@@ -34,7 +34,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
        config   (dict.):  dictionary that contains configuration options (read from file)
    '''
 
-   nens = int(len(atcf.atcf_files))
+   nens = atcf.num_atcf_files
 
    plotDict = {}
    for key in config['sens']:
