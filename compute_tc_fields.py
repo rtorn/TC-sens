@@ -352,7 +352,7 @@ def ComputeTCFields(datea, fhr, atcf, config):
              qvap = mpcalc.mixing_ratio_from_relative_humidity(pres[:,None,None], tmpk, relh)
 
           #  Integrate water vapor over the pressure levels
-          ensmat[n,:,:] = np.abs(np.trapz(qvap, pres, axis=0)) / mpcon.earth_gravity
+          ensmat[n,:,:] = np.abs(np.trapz(qvap, pres.magnitude, axis=0)) / mpcon.earth_gravity
 
        ensmat.to_netcdf(outfile, encoding=dencode)
 
@@ -403,7 +403,7 @@ def ComputeTCFields(datea, fhr, atcf, config):
                 del tmpk, relh
 
              #  Integrate water vapor over the pressure levels
-             ensmat[n,:,:] = np.abs(np.trapz(uwnd[:,:,:]*qvap[:,:,:], pres, axis=0)) / mpcon.earth_gravity
+             ensmat[n,:,:] = np.abs(np.trapz(uwnd[:,:,:]*qvap[:,:,:], pres.magnitude, axis=0)) / mpcon.earth_gravity
              del uwnd,vwnd,qvap,pres
 
        ensmat.to_netcdf(outfile, encoding=dencode)
