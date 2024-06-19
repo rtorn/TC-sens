@@ -12,12 +12,12 @@ atcf_dir=/public/data/nhc/a-decks
 #atcf_dir=https://ftp.nhc.noaa.gov/atcf/aid_public
 model_dir=/public/data/grids/gens
 
-work_dir=/lfs1/HFIP/hfip-ahw/JHT/work_gefs
-output_dir=/lfs1/HFIP/hfip-ahw/JHT/output
+work_dir=/lfs5/HFIP/hfip-ahw/JHT/work_gefs
+output_dir=/lfs5/HFIP/hfip-ahw/JHT/output
 script_dir=/home/Ryan.Torn/JHT-python
-figure_dir=/lfs1/HFIP/hfip-ahw/JHT/html/GEFS
-outgrid_dir=/lfs1/HFIP/hfip-ahw/JHT/html/GEFS
-log_dir=/lfs1/HFIP/hfip-ahw/JHT/log_gefs
+figure_dir=/lfs5/HFIP/hfip-ahw/JHT/html/GEFS
+outgrid_dir=/lfs5/HFIP/hfip-ahw/JHT/html/GEFS/grid
+log_dir=/lfs5/HFIP/hfip-ahw/JHT/log_gefs
 
 save_work_dir=True
 
@@ -31,7 +31,7 @@ precip_hour_1=[48]
 precip_hour_2=[72]
 
 [metric]
-static_fields_file=/lfs1/HFIP/hfip-ahw/JHT/landmask_gefs_0p5.grb2
+static_fields_file=/lfs5/HFIP/hfip-ahw/JHT/landmask_gefs_0p5.grb2
 int_track_fhr1=24
 int_track_fhr2=120
 track_eof_member_frac = 0.3
@@ -40,10 +40,10 @@ intensity_eof_member_frac = 0.3
 track_inten_eof_metric=True
 kinetic_energy_metric=False
 wind_speed_eof_metric=True
-wind_speed_metric_file=/lfs1/HFIP/hfip-ahw/JHT/metrics_wind/{0}_{1}_wind
+wind_speed_metric_file=/lfs5/HFIP/hfip-ahw/JHT/metrics_wind/{0}_{1}_wind
 fcst_int=6
 precip_eof_metric=True
-precip_metric_file=/lfs1/HFIP/hfip-ahw/JHT/metrics_pcp/{0}_{1}_precip
+precip_metric_file=/lfs5/HFIP/hfip-ahw/JHT/metrics_pcp/{0}_{1}_precip
 grid_interval=2
 
 [fields]
