@@ -14,7 +14,7 @@ import matplotlib.ticker as mticker
 from matplotlib import colors
 import cartopy.crs as ccrs
 
-from SensPlotRoutines import plotVecSens, plotScalarSens, computeSens, addDrop, writeSensFile, addRangeRings, set_projection, background_map
+from SensPlotRoutines import plotVecSens, plotScalarSens, computeSens, addDrop, writeSensFile, addRangeRings, great_circle, set_projection, background_map
 
 def ComputeSensitivity(datea, fhr, metname, atcf, config):
    '''
@@ -826,6 +826,13 @@ def writeNHCSensFile(lat, lon, fhr, emean, sens, sigv, metname, sensfile, plotDi
    fhr_out.units = 'h'
    fhr_out.long_name = 'forecast_hour'
 
+   dist_out = ncfile.createVariable('distance_to_TC',np.float32,('lat','lon'))
+   dist_out.description = 'distance from each grid point to the TC'
+   dist_out.units = 'km'
+
+   lonarr, latarr = np.meshgrid(lon, lat)
+   tcdist = great_circle(plotDict.get('tcLon'), plotDict.get('tcLat'), lonarr, latarr)
+
    #  Create other variables
    emea_out = ncfile.createVariable('{0}_ensemble_mean'.format(metname),np.float32,('lat','lon'))
    emea_out.description = 'ensemble mean'
@@ -843,12 +850,14 @@ def writeNHCSensFile(lat, lon, fhr, emean, sens, sigv, metname, sensfile, plotDi
    asen_out.description = 'abs. value of regression coefficient'
    if 'metricUnits' in plotDict:
       asen_out.units = plotDict.get('metricUnits')
+   
 
    #  Write variables to a file
    lat_out[:]    = lat
    lon_out[:]    = lon
    fhr_out[:]    = fhr
 
+   dist_out[:,:] = tcdist
    emea_out[:,:] = emean
    sens_out[:,:] = sens
    sigv_out[:,:] = sigv
