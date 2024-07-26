@@ -1780,7 +1780,7 @@ class ComputeForecastMetrics:
 
         confgrib = self.config.copy()
         if self.storm[-1] == "e" or self.storm[-1] == "c":
-           confgrib['flip_lon'] = 'True'
+           confgrib['model']['flip_lon'] = 'True'
 
         g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, confgrib)
 
@@ -2187,7 +2187,7 @@ class ComputeForecastMetrics:
 
         confgrib = self.config.copy()
         if self.storm[-1] == "e" or self.storm[-1] == "c":
-           confgrib['flip_lon'] = 'True'
+           confgrib['model']['flip_lon'] = 'True'
 
         g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1, confgrib)
 
