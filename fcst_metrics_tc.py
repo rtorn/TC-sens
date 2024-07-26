@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, copy
 import numpy as np
 import xarray as xr
 import json
@@ -1778,7 +1778,7 @@ class ComputeForecastMetrics:
               logging.error('  lat1 = {0}, lat2 = {1}, lat1 = {2}, lat2 = {3}'.format(lat1,lat2,lon1,lon2))
               return None
 
-        confgrib = self.config.copy()
+        confgrib = copy.deepcopy(self.config)
         if self.storm[-1] == "e" or self.storm[-1] == "c":
            confgrib['model']['flip_lon'] = 'True'
 
@@ -2185,7 +2185,7 @@ class ComputeForecastMetrics:
               logging.error('  lat1 = {0}, lat2 = {1}, lat1 = {2}, lat2 = {3}'.format(lat1,lat2,lon1,lon2))
               return None
 
-        confgrib = self.config.copy()
+        confgrib = copy.deepcopy(self.config)
         if self.storm[-1] == "e" or self.storm[-1] == "c":
            confgrib['model']['flip_lon'] = 'True'
 
