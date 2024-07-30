@@ -1725,7 +1725,7 @@ class ComputeForecastMetrics:
         tcmet_time_adapt = eval(self.config['metric'].get('precip_eof_time_adapt','False'))
         tcmet_time_dbuff = float(self.config['metric'].get('precip_eof_time_adapt_domain',2.0))
         tcmet_time_freq  = int(self.config['metric'].get('precip_eof_time_adapt_freq',6))
-        pcpmin = float(self.config['metric'].get('precip_eof_adapt_pcp_min','8.0'))
+        pcpmin = float(self.config['metric'].get('precip_eof_adapt_pcp_min','12'))
         metname = 'pcpeof'
         eofn = 1
 
