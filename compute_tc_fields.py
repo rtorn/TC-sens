@@ -239,16 +239,17 @@ def ComputeTCFields(datea, fhr, atcf, config):
              lev1 = np.min(pvec[(int(idx[0])-1):(int(idx[0])+2)])
              lev2 = np.max(pvec[(int(idx[0])-1):(int(idx[0])+2)])
 
-             vDict = {'latitude': (lat1, lat2), 'longitude': (lon1, lon2), 'isobaricInhPa': (lev1, lev2),
-                      'description': '{0} hPa Potential Vorticity'.format(levstr), 'units': 'PVU', '_FillValue': -9999.}
-             vDict = g1.set_var_bounds('zonal_wind', vDict)
+             vDict = g1.set_var_bounds('zonal_wind', {'latitude': (lat1, lat2), 'longitude': (lon1, lon2), 'isobaricInhPa': (lev1, lev2), \
+                                                      'description': '{0} hPa Potential Vorticity'.format(levstr), 'units': 'PVU', '_FillValue': -9999.})
+             tDict = g1.set_var_bounds('temperature', {'latitude': (lat1, lat2), 'longitude': (lon1, lon2), 'isobaricInhPa': (lev1, lev2), \
+                                                       'description': '{0} hPa Potential Vorticity'.format(levstr), 'units': 'PVU', '_FillValue': -9999.})
 
              ensmat = g1.create_ens_array('zonal_wind', g1.nens, vDict)
 
              for n in range(g1.nens):
 
                 #  Read all the necessary files from file, smooth fields, so sensitivities are useful
-                tmpk = g1.read_grib_field('temperature', n, vDict) * units('K')
+                tmpk = g1.read_grib_field('temperature', n, tDict) * units('K')
 
                 lats = ensmat.latitude.values * units('degrees')
                 lons = ensmat.longitude.values * units('degrees')
@@ -380,9 +381,10 @@ def ComputeTCFields(datea, fhr, atcf, config):
 
        else:
 
-          vDict = {'latitude': (lat1, lat2), 'longitude': (lon1, lon2), 'isobaricInhPa': (400, 1000),
-                   'description': 'Integrated Water Vapor Transport', 'units': 'hPa', '_FillValue': -9999.}
-          vDict = g1.set_var_bounds('temperature', vDict)
+          vDict = g1.set_var_bounds('zonal_wind', {'latitude': (lat1, lat2), 'longitude': (lon1, lon2), 'isobaricInhPa': (400, 1000), \
+                                                   'description': 'Integrated Water Vapor Transport', 'units': 'hPa', '_FillValue': -9999.})
+          tDict = g1.set_var_bounds('temperature', {'latitude': (lat1, lat2), 'longitude': (lon1, lon2), 'isobaricInhPa': (400, 1000), \
+                                                    'description': 'Integrated Water Vapor Transport', 'units': 'hPa', '_FillValue': -9999.})
 
           for n in range(g1.nens):
 
@@ -395,10 +397,10 @@ def ComputeTCFields(datea, fhr, atcf, config):
              pres = (uwnd.isobaricInhPa.values * units.hPa).to(units.Pa)
 
              if g1.has_specific_humidity:
-                qvap = g1.read_grib_field('specific_humidity', n, vDict) * units('dimensionless')
+                qvap = g1.read_grib_field('specific_humidity', n, tDict) * units('dimensionless')
              else:
-                tmpk = g1.read_grib_field('temperature', n, vDict) * units('K')
-                relh = np.minimum(np.maximum(g1.read_grib_field('relative_humidity', n, vDict), 0.01), 100.0) * units('percent')
+                tmpk = g1.read_grib_field('temperature', n, tDict) * units('K')
+                relh = np.minimum(np.maximum(g1.read_grib_field('relative_humidity', n, tDict), 0.01), 100.0) * units('percent')
                 qvap = mpcalc.mixing_ratio_from_relative_humidity(pres[:,None,None], tmpk, relh)
                 del tmpk, relh
 
