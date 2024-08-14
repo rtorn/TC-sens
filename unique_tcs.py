@@ -27,7 +27,8 @@ def unique_tcs_from_vitals(vitalfile, yyyymmddhh):
   #  Construct the list of TC names and return the list
   stormlist = []
   for i in range(len(df.index)):
-    stormlist.append('{0}{1}'.format(df['name'][i].lower(),df['ID'][i].lower()))
+    if int(df['ID'][i][0:2]) < 50:
+      stormlist.append('{0}{1}'.format(df['name'][i].lower(),df['ID'][i].lower()))
 
   return(stormlist)
 
