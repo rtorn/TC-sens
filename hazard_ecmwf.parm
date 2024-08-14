@@ -71,6 +71,7 @@ multiprocessor=True
 grid_interval=10.
 barb_interval=6
 dropsonde_file=/rt11/torn/JHT/dropinfo/{0}_drop_info.txt
+turns_file=/rt11/torn/JHT/dropinfo/{0}_turns_info.txt
 drop_mark_size=10
 drop_mark_color=black
 drop_mark_type=P
