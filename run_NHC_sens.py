@@ -84,43 +84,23 @@ def read_config(datea, storm, filename):
     return(config)
 
 
-def main():
+def run_ens_sensitivity(datea, storm, paramfile):
     '''
     This is the main routine that calls all of the steps needed to compute ensemble-based
-    sensitivity for TC forecasts.  The script can be called from the command line, where the
+    sensitivity for TC forecasts.  The routine can be called from the command line, where the
     user inputs the forecast initialization date, and storm name.  The user can also add the
-    path to the parameter file.
+    path to the parameter file.  Alternatively, this routine can be called directly within 
+    a python program.
 
     Important:  within the parameter file, the user needs to set the variable io_module, which
     contains information for how to read and use grib and ATCF data from a specific source and
     model.  The module specified in this variable will be used to get all input data.
 
-    From command line:
-
-    python run_NHC_sens.py -init yyyymmddhh --storm XXXXXXNNB --param paramfile
-
-      where:
-
-        -init is the initialization date in yyyymmddhh format
-        -storm is the TC name (XXXXXX is the storm name, NN is the number, B is the basin)
-        -param is the parameter file path (optional, otherwise goes to default values in default.parm)
+    Attributes:
+        datea  (string):   The initialization time of the forecast (yyyymmddhh)
+        storm  (string):   TC name, where XXXXXXXNNB, where XXXXXXXX is the name, NN is the number, B is the basin
+        paramfile (dict):  The configuration file with all of the parameters
     '''
-
-    #  Read the initialization time and storm from the command line
-    exp_parser = argparse.ArgumentParser()
-    exp_parser.add_argument('--init',  action='store', type=str, required=True)
-    exp_parser.add_argument('--storm', action='store', type=str, required=True)
-    exp_parser.add_argument('--param', action='store', type=str)
-
-    args = exp_parser.parse_args()
-
-    datea = args.init
-    storm = args.storm
-
-    if args.param:
-       paramfile = args.param
-    else:
-       paramfile = 'example.parm'
 
     #  Read the configuration file and set up for usage later
     config = read_config(datea, storm, paramfile)
@@ -438,5 +418,29 @@ def ComputeSensitivityParallel(args):
 
 
 if __name__ == '__main__':
+    '''
+    See run_ens_sensitivity for description.  To run this code from the command line:
 
-   main()
+    python run_NHC_sens.py -init yyyymmddhh --storm XXXXXXNNB --param paramfile
+
+      where:
+
+        -init is the initialization date in yyyymmddhh format
+        -storm is the TC name (XXXXXX is the storm name, NN is the number, B is the basin)
+        -param is the parameter file path (optional, otherwise goes to default values in default.parm)
+    '''
+
+    #  Read the initialization time and storm from the command line
+    exp_parser = argparse.ArgumentParser()
+    exp_parser.add_argument('--init',  action='store', type=str, required=True)
+    exp_parser.add_argument('--storm', action='store', type=str, required=True)
+    exp_parser.add_argument('--param', action='store', type=str)
+
+    args = exp_parser.parse_args()
+
+    if args.param:
+       paramfile = args.param
+    else:
+       paramfile = 'example.parm'
+
+    run_ens_sensitivity(args.init, args.storm, paramfile)
