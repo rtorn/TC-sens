@@ -48,6 +48,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       bb = 'al'
    elif config['storm'][-1] == "e":
       bb = 'ep'
+   elif config['storm'][-1] == "c":
+      bb = 'cp'
    elif storm[-1] == "w":
       bb = 'wp'
    bbnn = '{0}{1}'.format(bb,config['storm'][-3:-1])

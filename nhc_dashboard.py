@@ -80,6 +80,12 @@ def main():
       lat2 = float(config['sens'].get('max_lat','65.0'))
       lon1 = float(config['sens'].get('min_lon','-180.0'))
       lon2 = float(config['sens'].get('max_lon','-80.0'))
+   elif args.storm[-1] == "c":
+      bb = 'cp'
+      lat1 = float(config['sens'].get('min_lat','8.0'))
+      lat2 = float(config['sens'].get('max_lat','65.0'))
+      lon1 = float(config['sens'].get('min_lon','-180.0'))
+      lon2 = float(config['sens'].get('max_lon','-80.0'))
    elif args.storm[-1] == "w":
       bb = 'wp'
    bbnn = '{0}{1}'.format(bb,args.storm[-3:-1])

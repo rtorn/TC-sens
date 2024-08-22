@@ -123,6 +123,12 @@ def run_ens_sensitivity(datea, storm, paramfile):
        config['sens']['max_lat'] = config['sens'].get('max_lat','65.0')
        config['sens']['min_lon'] = config['sens'].get('min_lon','-180.0')
        config['sens']['max_lon'] = config['sens'].get('max_lon','-80.0')
+    elif storm[-1] == "c":
+       bbl = "cp"
+       config['sens']['min_lat'] = config['sens'].get('min_lat','8.0')
+       config['sens']['max_lat'] = config['sens'].get('max_lat','65.0')
+       config['sens']['min_lon'] = config['sens'].get('min_lon','-180.0')
+       config['sens']['max_lon'] = config['sens'].get('max_lon','-80.0')
     elif storm[-1] == "w":
        bbl = "wp"
 
