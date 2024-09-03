@@ -874,6 +874,13 @@ class ComputeForecastMetrics:
         plt.title(self.config['metric'].get('title_string','{0} {1} forecast of {2}, {3} of variance'.format(self.datea_str, \
                            self.config['model'].get('model_src',''), self.storm, fracvar)))
 
+        if eval(config['metric'].get('legend','False')):
+           plt.text(minLon+(maxLon-minLon)*0.90, minLat+(maxLat-minLat)*0.58, '24 h', fontsize=15, color=ellcol[0], backgroundcolor='#FFFFFF')
+           plt.text(minLon+(maxLon-minLon)*0.90, minLat+(maxLat-minLat)*0.54, '48 h', fontsize=15, color=ellcol[1], backgroundcolor='#FFFFFF')
+           plt.text(minLon+(maxLon-minLon)*0.90, minLat+(maxLat-minLat)*0.50, '72 h', fontsize=15, color=ellcol[2], backgroundcolor='#FFFFFF')
+           plt.text(minLon+(maxLon-minLon)*0.90, minLat+(maxLat-minLat)*0.46, '96 h', fontsize=15, color=ellcol[3], backgroundcolor='#FFFFFF')
+           plt.text(minLon+(maxLon-minLon)*0.90, minLat+(maxLat-minLat)*0.42, '120 h', fontsize=15, color=ellcol[4], backgroundcolor='#FFFFFF')
+
         outdir = '{0}/f{1}_intmajtrack'.format(self.config['locations']['figure_dir'],'%0.3i' % fhr2)
         if not os.path.isdir(outdir):
            try:
