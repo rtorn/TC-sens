@@ -254,7 +254,7 @@ def ComputeTCFields(datea, fhr, atcf, config):
              for n in range(g1.nens):
 
                 #  Read all the necessary files from file, smooth fields, so sensitivities are useful
-                tmpk = g1.read_grib_field('temperature', n, tDict) * units('K')
+                tmpk = g1.read_grib_field('temperature', n, tDict).reset_coords('valid_time', drop=True) * units('K')
 
                 lats = ensmat.latitude.values * units('degrees')
                 lons = ensmat.longitude.values * units('degrees')
@@ -262,8 +262,8 @@ def ComputeTCFields(datea, fhr, atcf, config):
 
                 thta = mpcalc.potential_temperature(pres[:, None, None], tmpk)
 
-                uwnd = g1.read_grib_field('zonal_wind', n, vDict) * units('m/s')
-                vwnd = g1.read_grib_field('meridional_wind', n, vDict) * units('m/s')
+                uwnd = g1.read_grib_field('zonal_wind', n, vDict).reset_coords('valid_time', drop=True) * units('m/s')
+                vwnd = g1.read_grib_field('meridional_wind', n, vDict).reset_coords('valid_time', drop=True) * units('m/s')
 
                 dx, dy = mpcalc.lat_lon_grid_deltas(lons, lats, x_dim=-1, y_dim=-2, geod=None)
                 dx = np.maximum(dx, 1.0 * units('m'))
@@ -490,8 +490,8 @@ def ComputeTCFields(datea, fhr, atcf, config):
 
              for n in range(g1.nens):
 
-                uwnd = g1.read_grib_field('zonal_wind', n, vDict).squeeze() * units('m/s')
-                vwnd = g1.read_grib_field('meridional_wind', n, vDict).squeeze() * units('m/s')
+                uwnd = g1.read_grib_field('zonal_wind', n, vDict).squeeze().reset_coords('valid_time', drop=True) * units('m/s')
+                vwnd = g1.read_grib_field('meridional_wind', n, vDict).squeeze().reset_coords('valid_time', drop=True) * units('m/s')
 
                 lat  = ensmat.latitude.values
                 lon  = ensmat.longitude.values
