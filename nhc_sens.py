@@ -75,11 +75,9 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotDict['tcLon'] = m_lon / e_cnt
 
       tc_in_dom = True
-      if config['storm'][-1] == "e" or config['storm'][-1] == "c":
+      if (config['storm'][-1] == "e" or config['storm'][-1] == "c") and (not eval(config['model'].get('flip_lon','False'))):
          m_lon = (((m_lon / e_cnt) + 180.) % 360.) - 180.
          plotDict['tcLon'] = m_lon
-         if m_lon > 0.0:
-            tc_in_dom = False
    else:
       plotDict['tcLat'] = 0.
       plotDict['tcLon'] = 0.
@@ -104,9 +102,14 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
    stceDict['barb_interval']=3
    stceDict["figsize"]=(8.5,11)
 
-   if config['storm'][-1] == "e" or config['storm'][-1] == "c":
-      if stceDict['min_lon'] < -180.0 or stceDict['max_lon'] > 0.0:
-         tc_in_dom = False
+   if stceDict['min_lon'] < float(config['sens']['min_lon']) or stceDict['max_lon'] > float(config['sens']['max_lon']):
+      tc_in_dom = False
+
+   if config['storm'][-1] == "c":
+      plotDict['left_labels']  = 'True'
+      plotDict['right_labels'] = 'False'
+      stceDict['left_labels']  = 'True'
+      stceDict['right_labels'] = 'False'
 
    if 'min_lat' in config['sens']:
       lat1 = np.minimum(float(plotDict['min_lat']), stceDict['min_lat'])
@@ -228,14 +231,14 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
          writeSensFile(lat, lon, fhr, usteer, sens, sigv, '{0}/{1}/{0}_f{2}_usteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
          writeNHCSensFile(lat, lon, fhr, usteer, sens, sigv, metshort, '{0}/{1}/{3}/{0}_f{2}_usteer_sens.nc'.format(datea,bbnn,fhrt,metshort), plotDict)
 
-      plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), plotDict)
+      plotVecSens(lat, lon, sens, usteer.data, vsteer.data, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0 and tc_in_dom:
          outdir = '{0}/{1}/sens_sc/usteer'.format(config['locations']['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
-         plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), stceDict)
+         plotVecSens(lat, lon, sens, usteer.data, vsteer.data, sigv, '{0}/{1}_f{2}_usteer_sens.png'.format(outdir,datea,fhrt), stceDict)
 
 
       #  Compute sensitivity with respect to meridional steering wind
@@ -250,14 +253,14 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
          writeSensFile(lat, lon, fhr, vsteer, sens, sigv, '{0}/{1}/{0}_f{2}_vsteer_sens.nc'.format(datea,bbnn,fhrt), plotDict)
          writeNHCSensFile(lat, lon, fhr, vsteer, sens, sigv, metshort, '{0}/{1}/{3}/{0}_f{2}_vsteer_sens.nc'.format(datea,bbnn,fhrt,metshort), plotDict)
 
-      plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), plotDict)
+      plotVecSens(lat, lon, sens, usteer.data, vsteer.data, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0 and tc_in_dom:
          outdir = '{0}/{1}/sens_sc/vsteer'.format(config['locations']['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
-         plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), stceDict)
+         plotVecSens(lat, lon, sens, usteer.data, vsteer.data, sigv, '{0}/{1}_f{2}_vsteer_sens.png'.format(outdir,datea,fhrt), stceDict)
 
 
       #  Rotate wind into major axis direction, compute sensitivity to steering wind in that direction
@@ -278,14 +281,14 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if eval(plotDict.get('output_sens', 'False')) and any(ele in metname for ele in ['intmajtrack', 'intmslp', 'wndeof', 'pcpeof']):
          writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metshort, '{0}/{1}/{3}/{0}_f{2}_masteer_sens.nc'.format(datea,bbnn,fhrt,metshort), plotDict)
 
-      plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), plotDict)
+      plotVecSens(lat, lon, sens, usteer.data, vsteer.data, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0 and tc_in_dom:
          outdir = '{0}/{1}/sens_sc/masteer'.format(config['locations']['figure_dir'],metname)
          if not os.path.isdir(outdir):
             os.makedirs(outdir, exist_ok=True)
 
-         plotVecSens(lat, lon, sens, usteer, vsteer, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), stceDict)
+         plotVecSens(lat, lon, sens, usteer.data, vsteer.data, sigv, '{0}/{1}_f{2}_masteer_sens.png'.format(outdir,datea,fhrt), stceDict)
 
 
    #  Read steering flow streamfunction, compute sensitivity to that field, if the file exists
@@ -344,7 +347,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if eval(plotDict.get('output_sens', 'False')) and any(ele in metname for ele in ['intmajtrack', 'intmslp', 'wndeof', 'pcpeof']):
          writeNHCSensFile(lat, lon, fhr, emea, sens, sigv, metshort, '{0}/{1}/{3}/{0}_f{2}_csteer_sens.nc'.format(datea,bbnn,fhrt,metshort), plotDict)
 
-      plotDict['meanCntrs'] = np.array([-5.0, -4.0, -3.0, -2.0, -1.5, -1.0, -0.5, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0])
+      plotDict['meanCntrs'] = np.array([-8.0, -6.0, -4.0, -3.0, -2.0, -1.5, -1.0, -0.5, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0])
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_csteer_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       if e_cnt > 0 and tc_in_dom:
@@ -538,7 +541,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
-      plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_u925hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
+      plotVecSens(lat, lon, sens, umea.data, vmea.data, sigv, '{0}/{1}_f{2}_u925hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
 
       sens, sigv = computeSens(vens, vmea, vvar, metric)
       sens[:,:] = sens[:,:] * np.sqrt(vvar[:,:])
@@ -547,7 +550,7 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       if not os.path.isdir(outdir):
          os.makedirs(outdir, exist_ok=True)
 
-      plotVecSens(lat, lon, sens, umea, vmea, sigv, '{0}/{1}_f{2}_v925hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
+      plotVecSens(lat, lon, sens, umea.data, vmea.data, sigv, '{0}/{1}_f{2}_v925hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
 
 
    plist = [850]

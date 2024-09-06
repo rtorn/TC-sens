@@ -50,17 +50,9 @@ calc_theta-e=True
 calc_q500-850hPa=True
 calc_ivt=True
 calc_vorticity=True
-min_lat=0.0
-max_lat=65.0
-min_lon=-180.0
-max_lon=-10.0
 multiprocessor=True
 
 [sens]
-#min_lat=8.0
-#max_lat=65.0
-#min_lon=-140.0
-#max_lon=-20.0
 grid_interval=10.
 barb_interval=9
 dropsonde_file=/rt11/torn/JHT/dropinfo/{0}_drop_info.txt

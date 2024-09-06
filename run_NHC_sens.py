@@ -113,22 +113,35 @@ def run_ens_sensitivity(datea, storm, paramfile):
     #  Set the domain parameters based on basin
     if storm[-1] == "l":
        bbl = "al"
-       config['sens']['min_lat'] = config['sens'].get('min_lat','8.0')
-       config['sens']['max_lat'] = config['sens'].get('max_lat','65.0')
-       config['sens']['min_lon'] = config['sens'].get('min_lon','-140.0')
-       config['sens']['max_lon'] = config['sens'].get('max_lon','-20.0')
+       config['fields']['min_lat'] = config['fields'].get('min_lat','0.0')
+       config['fields']['max_lat'] = config['fields'].get('max_lat','65.0')
+       config['fields']['min_lon'] = config['fields'].get('min_lon','-180.0')
+       config['fields']['max_lon'] = config['fields'].get('max_lon','-10.0')
+       config['sens']['min_lat']   = config['sens'].get('min_lat','8.0')
+       config['sens']['max_lat']   = config['sens'].get('max_lat','65.0')
+       config['sens']['min_lon']   = config['sens'].get('min_lon','-140.0')
+       config['sens']['max_lon']   = config['sens'].get('max_lon','-20.0')
     elif storm[-1] == "e":
        bbl = "ep"
-       config['sens']['min_lat'] = config['sens'].get('min_lat','8.0')
-       config['sens']['max_lat'] = config['sens'].get('max_lat','65.0')
-       config['sens']['min_lon'] = config['sens'].get('min_lon','-180.0')
-       config['sens']['max_lon'] = config['sens'].get('max_lon','-80.0')
+       config['fields']['min_lat'] = config['fields'].get('min_lat','0.0')
+       config['fields']['max_lat'] = config['fields'].get('max_lat','65.0')
+       config['fields']['min_lon'] = config['fields'].get('min_lon','-180.0')
+       config['fields']['max_lon'] = config['fields'].get('max_lon','-10.0')
+       config['sens']['min_lat']   = config['sens'].get('min_lat','8.0')
+       config['sens']['max_lat']   = config['sens'].get('max_lat','65.0')
+       config['sens']['min_lon']   = config['sens'].get('min_lon','-180.0')
+       config['sens']['max_lon']   = config['sens'].get('max_lon','-80.0')
     elif storm[-1] == "c":
        bbl = "cp"
-       config['sens']['min_lat'] = config['sens'].get('min_lat','8.0')
-       config['sens']['max_lat'] = config['sens'].get('max_lat','65.0')
-       config['sens']['min_lon'] = config['sens'].get('min_lon','-180.0')
-       config['sens']['max_lon'] = config['sens'].get('max_lon','-80.0')
+       config['model']['flip_lon'] = 'True'
+       config['fields']['min_lat'] = config['fields'].get('min_lat','0.0')
+       config['fields']['max_lat'] = config['fields'].get('max_lat','65.0')
+       config['fields']['min_lon'] = config['fields'].get('min_lon','140.0')
+       config['fields']['max_lon'] = config['fields'].get('max_lon','240.0')
+       config['sens']['min_lat']   = config['sens'].get('min_lat','8.0')
+       config['sens']['max_lat']   = config['sens'].get('max_lat',config['fields']['max_lat'])
+       config['sens']['min_lon']   = config['sens'].get('min_lon',config['fields']['min_lon'])
+       config['sens']['max_lon']   = config['sens'].get('max_lon',config['fields']['max_lon'])
     elif storm[-1] == "w":
        bbl = "wp"
 
@@ -162,12 +175,13 @@ def run_ens_sensitivity(datea, storm, paramfile):
     tc.plot_ens_tc_track(fatcf, batcf, storm, datea, config) 
     tc.plot_ens_tc_intensity(fatcf, batcf, storm, datea, config)
 
-    #  Plot the precipitation forecast
+    #  Plot the precipitation forecast, if this is an Atlantic Basin storm
     fhr1 = json.loads(config['vitals_plot'].get('precip_hour_1'))
     fhr2 = json.loads(config['vitals_plot'].get('precip_hour_2'))
 
-    for h in range(len(fhr1)):
-       precipitation_ens_maps(datea, int(fhr1[h]), int(fhr2[h]), config)
+    if storm[-1] == "l":
+       for h in range(len(fhr1)):
+          precipitation_ens_maps(datea, int(fhr1[h]), int(fhr2[h]), config)
 
 
     #  Compute TC-related forecast metrics

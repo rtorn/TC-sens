@@ -59,13 +59,18 @@ def ComputeTCFields(datea, fhr, atcf, config):
     m_lon = 0.0
     for n in range(nens):
        if ens_lat[n] != atcf.missing and ens_lon[n] != atcf.missing:
+          if config['storm'][-1] == "e" or config['storm'][-1] == "c" or eval(config['model'].get('flip_lon','False')):
+            ens_lon[n] = (ens_lon[n] + 360.) % 360.
+
           e_cnt = e_cnt + 1
           m_lat = m_lat + ens_lat[n]
           m_lon = m_lon + ens_lon[n]
 
     if e_cnt > 0:
-       m_lon = m_lon / e_cnt
        m_lat = m_lat / e_cnt
+       m_lon = m_lon / e_cnt
+       if config['storm'][-1] == "e" and (not eval(config['model'].get('flip_lon','False'))):
+          m_lon = ((m_lon + 180.) % 360.) - 180.
 
     for n in range(nens):
        if ens_lat[n] == atcf.missing or ens_lon[n] == atcf.missing:
