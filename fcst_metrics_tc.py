@@ -2049,8 +2049,11 @@ class ComputeForecastMetrics:
         cbar.set_ticks(mpcp[1:(len(mpcp)-1)])
         cb = plt.clabel(pltm, inline_spacing=0.0, fontsize=12, fmt="%1.0f")
 
-        fracvar = '%4.3f' % solver.varianceFraction(neigs=1)
-        plt.title("{0} {1}-{2} hour Precipitation, {3} of variance".format(str(self.datea_str),fhr1,fhr2,fracvar))
+        if eofn == 1:
+           fracvar = solver.varianceFraction(neigs=1).data
+        else:
+           fracvar = solver.varianceFraction(neigs=eofn)[-1].data
+        plt.title("{0} {1}-{2} hour Precipitation, {3} of variance".format(str(self.datea_str),fhr1,fhr2,'%4.3f' % fracvar))
 
         outdir = '{0}/f{1}_{2}'.format(self.config['locations']['figure_dir'],'%0.3i' % fhr2,metname)
         if not os.path.isdir(outdir):
