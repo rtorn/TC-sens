@@ -1998,7 +1998,7 @@ class ComputeForecastMetrics:
                  for j in range(nlat): 
                     if lmask[j,i] > 0.0:
                        ngrid = ngrid + 1
-                       ensarr[:,ngrid] = ensmat[:,j,i].data * np.sqrt(coslat[j]) * lmask[j,i]
+                       ensarr[:,ngrid] = ensmat[:,j,i].data * np.sqrt(coslat[j]) * lmask[j,i].data
 
               solver = Eof_xarray(ensarr[:,0:ngrid])
 
