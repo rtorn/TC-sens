@@ -20,9 +20,12 @@ def unique_tcs_from_vitals(vitalfile, yyyymmddhh):
 
   #  Scan dataframe for lines that match analysis time and remove duplicate storms
   df = df.loc[(df['yyyymmdd'] == int(yyyymmddhh[0:8])) & (df['hhmm'] == (int(yyyymmddhh[8:10])*100))].reset_index()
-  df.drop_duplicates(subset=['ID'], inplace=True)
+  df.drop_duplicates(subset=['ID'], inplace=True, ignore_index=True)
+#  df = df.reset_index()
   if df.empty:
     return([])
+
+  print(df)
 
   #  Construct the list of TC names and return the list
   stormlist = []
