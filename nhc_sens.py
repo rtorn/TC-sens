@@ -1,5 +1,6 @@
 import os
 import logging
+import json
 import sys
 import netCDF4 as nc
 import xarray as xr
@@ -515,45 +516,57 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
       plotScalarSens(lat, lon, sens, emea, sigv, '{0}/{1}_f{2}_e850hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
 
 
-   #  Read 925 hPa zonal and meridional wind, compute sensitivity
-   ufile = '{0}/{1}_f{2}_u925hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
-   vfile = '{0}/{1}_f{2}_v925hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt)
-   if ('pcp' in metname or 'precip' in metname or 'wnd' in metname) and os.path.isfile(ufile) and os.path.isfile(vfile):
+   #  Read zonal and meridional wind, compute sensitivity
+   if 'wind_levels' in config['sens']:
+      plist = json.loads(config['sens'].get('wind_levels'))
+   else:
+      plist = [925]
 
-      ds = xr.open_dataset(ufile)
-      uens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
-      lat = uens.latitude.values
-      lon = uens.longitude.values
-      umea = np.mean(uens, axis=0)
-      umea.attrs['units'] = ds.ensemble_data.attrs['units']
-      uvar = np.var(uens, axis=0)
+   for pres in plist:
 
-      ds = xr.open_dataset(vfile)
-      vens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
-      vmea  = np.mean(vens, axis=0)
-      vmea.attrs['units'] = ds.ensemble_data.attrs['units']
-      vvar = np.var(vens, axis=0)
+      ufile = '{0}/{1}_f{2}_u{3}hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt,pres)
+      vfile = '{0}/{1}_f{2}_v{3}hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt,pres)
+      if ('pcp' in metname or 'precip' in metname or 'wnd' in metname) and os.path.isfile(ufile) and os.path.isfile(vfile):
 
-      sens, sigv = computeSens(uens, umea, uvar, metric)
-      sens[:,:] = sens[:,:] * np.sqrt(uvar[:,:])
+         ds = xr.open_dataset(ufile)
+         uens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
+         lat = uens.latitude.values
+         lon = uens.longitude.values
+         umea = np.mean(uens, axis=0)
+         umea.attrs['units'] = ds.ensemble_data.attrs['units']
+         uvar = np.var(uens, axis=0)
 
-      outdir = '{0}/{1}/sens/u925hPa'.format(config['locations']['figure_dir'],metname)
-      if not os.path.isdir(outdir):
-         os.makedirs(outdir, exist_ok=True)
+         ds = xr.open_dataset(vfile)
+         vens = ds.ensemble_data.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2)).squeeze()
+         vmea  = np.mean(vens, axis=0)
+         vmea.attrs['units'] = ds.ensemble_data.attrs['units']
+         vvar = np.var(vens, axis=0)
 
-      plotVecSens(lat, lon, sens, umea.data, vmea.data, sigv, '{0}/{1}_f{2}_u925hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
+         sens, sigv = computeSens(uens, umea, uvar, metric)
+         sens[:,:] = sens[:,:] * np.sqrt(uvar[:,:])
 
-      sens, sigv = computeSens(vens, vmea, vvar, metric)
-      sens[:,:] = sens[:,:] * np.sqrt(vvar[:,:])
+         outdir = '{0}/{1}/sens/u{2}hPa'.format(config['locations']['figure_dir'],metname,pres)
+         if not os.path.isdir(outdir):
+            os.makedirs(outdir, exist_ok=True)
 
-      outdir = '{0}/{1}/sens/v925hPa'.format(config['locations']['figure_dir'],metname)
-      if not os.path.isdir(outdir):
-         os.makedirs(outdir, exist_ok=True)
+         plotVecSens(lat, lon, sens, umea.data, vmea.data, sigv, '{0}/{1}_f{2}_u{3}hPa_sens.png'.format(outdir,datea,fhrt,pres), plotDict)
 
-      plotVecSens(lat, lon, sens, umea.data, vmea.data, sigv, '{0}/{1}_f{2}_v925hPa_sens.png'.format(outdir,datea,fhrt), plotDict)
+         sens, sigv = computeSens(vens, vmea, vvar, metric)
+         sens[:,:] = sens[:,:] * np.sqrt(vvar[:,:])
+
+         outdir = '{0}/{1}/sens/v{2}hPa'.format(config['locations']['figure_dir'],metname,pres)
+         if not os.path.isdir(outdir):
+            os.makedirs(outdir, exist_ok=True)
+
+         plotVecSens(lat, lon, sens, umea.data, vmea.data, sigv, '{0}/{1}_f{2}_v{3}hPa_sens.png'.format(outdir,datea,fhrt,pres), plotDict)
 
 
-   plist = [850]
+   #  Read vorticity, compute sensitivity
+   if 'vorticity_levels' in config['sens']:
+      plist = json.loads(config['sens'].get('vorticity_levels'))
+   else:
+      plist = [850]
+
    for pres in plist:
 
       ensfile = '{0}/{1}_f{2}_vor{3}hPa_ens.nc'.format(config['locations']['work_dir'],datea,fhrt,pres)
