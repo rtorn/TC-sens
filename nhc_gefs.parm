@@ -1,6 +1,6 @@
 [model]
 model_src=GEFS
-io_module=gefs_aws
+io_module=gefs_aws_down
 num_ens=30
 fcst_hour_int=12
 fcst_hour_max=120
