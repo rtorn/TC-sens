@@ -1735,6 +1735,7 @@ class ComputeForecastMetrics:
         pcpmin = float(self.config['metric'].get('precip_eof_adapt_pcp_min','12'))
         metname = 'pcpeof'
         eofn = 1
+        eof_flip = False
 
         logging.warning('  Precipitation EOF Metric:')
 
@@ -1769,6 +1770,7 @@ class ComputeForecastMetrics:
               mask_land = eval(conf['definition'].get('land_mask',mask_land))
               metname = conf['definition'].get('metric_name',metname)
               eofn = int(conf['definition'].get('eof_number',eofn))
+              eof_flip = eval(conf['definition'].get('eof_flip','False'))
            except:
               logging.warning('  Error reading {0}.  Using parameter and/or default values'.format(infile))
         else:
@@ -2021,6 +2023,10 @@ class ComputeForecastMetrics:
         if np.sum(dpcp) < 0.:
            pc1[:]    = -pc1[:]
            dpcp[:,:] = -dpcp[:,:]
+
+        if eof_flip:
+           dpcp[:,:] = -dpcp[:,:]
+           pc1[:]    = -pc1[:]
 
         #  Create basic figure, including political boundaries and grid lines
         fig = plt.figure(figsize=(11,8.5))
