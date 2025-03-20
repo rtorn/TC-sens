@@ -1010,19 +1010,25 @@ class ComputeForecastMetrics:
 
            m_fhr[t] = fhr
            if e_cnt > 1:
+
              m_slp[t] = m_slp[t] / e_cnt
              m_wnd[t] = m_wnd[t] / e_cnt
-           else:
-             m_slp[t] = None
-             m_wnd[t] = None
 
-           #  Compute the MSLP trace associated with a 1 PC perturbation
-           for n in range(self.nens):
-              if ens_slp[n,t] != self.atcf.missing:
+             #  Compute the MSLP trace associated with a 1 PC perturbation
+             for n in range(self.nens):
+               if ens_slp[n,t] != self.atcf.missing:
                  dslp[t] = dslp[t] + (ens_slp[n,t]-m_slp[t]) * pc1[n] / e_cnt
                  dwnd[t] = dwnd[t] + (ens_wnd[n,t]-m_wnd[t]) * pc1[n] / e_cnt
 
-           sumslp  = sumslp + dslp[t]
+             sumslp = sumslp + dslp[t]
+             
+           else:
+
+             m_slp[t] = np.nan
+             m_wnd[t] = np.nan
+             dslp[t]  = np.nan
+             dwnd[t]  = np.nan
+
 
         #  Make sure that positive PC is always associated with intensification
         if sumslp > 0.:
@@ -1095,18 +1101,32 @@ class ComputeForecastMetrics:
         plt.savefig('{0}/metric.png'.format(outdir), format='png', dpi=150, bbox_inches='tight')
         plt.close(fig)
 
-        f_met_inteneof_nc = {'coords': {},
-                             'attrs': {'FORECAST_METRIC_LEVEL': '',
-                                       'FORECAST_METRIC_NAME': 'integrated min. SLP PC',
-                                       'FORECAST_METRIC_SHORT_NAME': 'inteneof'},
-                             'dims': {'num_ens': self.nens},
-                             'data_vars': {'fore_met_init': {'dims': ('num_ens',),
-                                                            'attrs': {'units': '',
-                                                                      'description': 'integrated min. SLP PC'},
-                                                            'data': pc1}}}
 
-        xr.Dataset.from_dict(f_met_inteneof_nc).to_netcdf(
-            self.outdir + "/{0}_f{1}_intmslp.nc".format(str(self.datea_str), '%0.3i' % fhr2), encoding={'fore_met_init': {'dtype': 'float32'}})
+        fmetatt = {'FORECAST_METRIC_LEVEL': '', 'FORECAST_METRIC_NAME': 'integrated min. SLP PC', 'FORECAST_METRIC_SHORT_NAME': 'inteneof', \
+                   'FORECAST_HOUR1': int(fhr1), 'FORECAST_HOUR2': int(fhr2), \
+                   'EOF_NUMBER': int(1), 'FRACTION_VARIANCE': solver.varianceFraction(neigs=1), 'MIN_ENSEMBLE': int(ens_min)}
+
+        m_slp = np.where(np.isnan(m_slp), -9999., m_slp)
+        m_wnd = np.where(np.isnan(m_wnd), -9999., m_wnd)
+        dslp  = np.where(np.isnan(dslp),  -9999., dslp)
+        dwnd  = np.where(np.isnan(dwnd),  -9999., dwnd)
+
+        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens, 'forecast_hour': len(m_fhr)}, 'data_vars': {}}
+        f_met['coords']['forecast_hour'] = {'dims': ('forecast_hour'), 'attrs': {'units': 'hours', 'description': 'forecast hour'}, 'data': m_fhr}
+
+        endict = {'fore_met_init': {'dtype': 'float32'}, 'forecast_hour': {'dtype': 'float32'}}
+        f_met['data_vars']['min_slp_mean'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'ensemble-mean TC min. SLP'}, 'data': m_slp}
+        endict['min_slp_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['max_wind_mean'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'ensemble-mean TC max. wind'}, 'data': m_wnd}
+        endict['max_wind_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['min_slp_pert'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'EOF perturbation TC min. SLP'}, 'data': dslp}
+        endict['min_slp_pert'] = {'dtype': 'float32'}
+        f_met['data_vars']['max_wind_pert'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'EOF perturbation TC max. wind'}, 'data': dwnd}
+        endict['max_wind_pert'] = {'dtype': 'float32'}
+        f_met['data_vars']['fore_met_init'] = {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'integrated min. SLP PC'}, 'data': pc1.data}
+
+        xr.Dataset.from_dict(f_met).to_netcdf(
+            self.outdir + "/{0}_f{1}_intmslp.nc".format(str(self.datea_str), '%0.3i' % fhr2), encoding=endict)
 
         self.metlist.append('f{0}_intmslp'.format('%0.3i' % fhr2))
 
