@@ -896,11 +896,28 @@ class ComputeForecastMetrics:
                    'FORECAST_HOUR1': int(fhr1), 'FORECAST_HOUR2': int(fhr2), 'X_DIRECTION_VECTOR': imsum, 'Y_DIRECTION_VECTOR': jmsum,  \
                    'EOF_NUMBER': int(1), 'FRACTION_VARIANCE': solver.varianceFraction(neigs=1), 'MIN_ENSEMBLE': int(ens_min)}
 
-        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens}, \
-                 'data_vars': {'fore_met_init': {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'integrated track PC'}, 'data': pc1.data}}}
+        fhrvec = np.arange(f1, f1+ntimes*6, 6)
+        m_lat = np.where(np.isnan(m_lat), -9999., m_lat)
+        m_lon = np.where(np.isnan(m_lon), -9999., m_lon)
+        p_lat = np.where(np.isnan(p_lat), -9999., p_lat)
+        p_lon = np.where(np.isnan(p_lon), -9999., p_lon)
+
+        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens, 'forecast_hour': len(fhrvec)}, 'data_vars': {}}
+        f_met['coords']['forecast_hour'] = {'dims': ('forecast_hour'), 'attrs': {'units': 'hours', 'description': 'forecast hour'}, 'data': fhrvec}        
+
+        endict = {'fore_met_init': {'dtype': 'float32'}, 'forecast_hour': {'dtype': 'float32'}}
+        f_met['data_vars']['latitude_mean'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'ensemble-mean TC latitude'}, 'data': m_lat}
+        endict['latitude_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['longitude_mean'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'ensemble-mean TC longitude'}, 'data': m_lon}
+        endict['longitude_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['latitude_pert'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'EOF perturbation TC latitude'}, 'data': p_lat}
+        endict['latitude_pert'] = {'dtype': 'float32'}
+        f_met['data_vars']['longitude_pert'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'EOF perturbation TC longitude'}, 'data': p_lon}
+        endict['longitude_pert'] = {'dtype': 'float32'}
+        f_met['data_vars']['fore_met_init'] = {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'integrated track PC'}, 'data': pc1.data}
 
         xr.Dataset.from_dict(f_met).to_netcdf(
-            "{0}/{1}_f{2}_intmajtrack.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2), encoding={'fore_met_init': {'dtype': 'float32'}})
+            "{0}/{1}_f{2}_intmajtrack.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2), encoding=endict)
 
         self.metlist.append('f{0}_intmajtrack'.format('%0.3i' % fhr2))
 
