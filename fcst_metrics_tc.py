@@ -1019,11 +1019,9 @@ class ComputeForecastMetrics:
            #  Compute the MSLP trace associated with a 1 PC perturbation
            for n in range(self.nens):
               if ens_slp[n,t] != self.atcf.missing:
-                 dslp[t] = dslp[t] + (ens_slp[n,t]-m_slp[t]) * pc1[n]
-                 dwnd[t] = dwnd[t] + (ens_wnd[n,t]-m_wnd[t]) * pc1[n]
+                 dslp[t] = dslp[t] + (ens_slp[n,t]-m_slp[t]) * pc1[n] / e_cnt
+                 dwnd[t] = dwnd[t] + (ens_wnd[n,t]-m_wnd[t]) * pc1[n] / e_cnt
 
-           dslp[t] = dslp[t] / e_cnt
-           dwnd[t] = dwnd[t] / e_cnt
            sumslp  = sumslp + dslp[t]
 
         #  Make sure that positive PC is always associated with intensification
@@ -1261,8 +1259,8 @@ class ComputeForecastMetrics:
              aloj = np.radians(m_lat[t2]-m_lat[t1])*self.earth_radius
 
              veclen = np.sqrt(aloi*aloi + aloj*aloj)
-             aloi   = aloi / veclen
-             aloj   = aloj / veclen
+             aloi   = aloi / np.max([veclen,0.000001])
+             aloj   = aloj / np.max([veclen,0.000001])
              acri   = aloj
              acrj   = -aloi
 
