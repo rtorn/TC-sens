@@ -1264,6 +1264,14 @@ class ComputeForecastMetrics:
               dx[t] = dx[t] / e_cnt
               dslp[t] = dslp[t] / e_cnt
 
+           else:
+
+              m_lat[t] = np.nan
+              m_lon[t] = np.nan
+              m_slp[t] = np.nan
+              dslp[t]  = np.nan
+
+
         imsum = 0.
         jmsum = 0.
         alsum = 0.
@@ -1514,24 +1522,38 @@ class ComputeForecastMetrics:
         plt.close(fig)
 
         #  Create xarray object of forecast metric, write to file.
-        f_met_trackeof_nc = {'coords': {},
-                             'attrs': {'FORECAST_METRIC_LEVEL': '',
-                                       'FORECAST_METRIC_NAME': 'integrated track and intensity PC',
-                                       'FORECAST_METRIC_SHORT_NAME': 'trackinteneof',
-                                       'X_DIRECTION_VECTOR': imsum,
-                                       'Y_DIRECTION_VECTOR': jmsum},
-                             'dims': {'num_ens': self.nens},
-                             'data_vars': {'fore_met_init': {'dims': ('num_ens',),
-                                                            'attrs': {'units': '',
-                                                                      'description': 'integrated track PC'},
-                                                            'data': np.squeeze(pc1.data)}}}
+        fmetatt = {'FORECAST_METRIC_LEVEL': '', 'FORECAST_METRIC_NAME': 'integrated track and intensity PC', 'FORECAST_METRIC_SHORT_NAME': 'trackinteneof', \
+                   'FORECAST_HOUR1': int(fhr1), 'FORECAST_HOUR2': int(fhr2), 'X_DIRECTION_VECTOR': imsum, 'Y_DIRECTION_VECTOR': jmsum,  \
+                   'EOF_NUMBER': int(1), 'FRACTION_VARIANCE': solver.varianceFraction(neigs=1), 'MIN_ENSEMBLE': int(ens_min)}
 
-        xr.Dataset.from_dict(f_met_trackeof_nc).to_netcdf(
-            self.outdir + "/{0}_f{1}_trackint.nc".format(str(self.datea_str), '%0.3i' % fhr2), encoding={'fore_met_init': {'dtype': 'float32'}})
+        m_lat = np.where(np.isnan(m_lat), -9999., m_lat)
+        m_lon = np.where(np.isnan(m_lon), -9999., m_lon)
+        m_slp = np.where(np.isnan(m_slp), -9999., m_slp)
+        p_lat = np.where(np.isnan(p_lat), -9999., p_lat)
+        p_lon = np.where(np.isnan(p_lon), -9999., p_lon)
+        dslp  = np.where(np.isnan(dslp),  -9999., dslp)
+
+        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens}, 'data_vars': {}}
+        f_met['coords']['forecast_hour'] = {'dims': ('forecast_hour'), 'attrs': {'units': 'hours', 'description': 'forecast hour'}, 'data': m_fhr}
+
+        endict = {'fore_met_init': {'dtype': 'float32'}, 'forecast_hour': {'dtype': 'float32'}}
+        f_met['data_vars']['latitude_mean'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'ensemble-mean TC latitude'}, 'data': m_lat}
+        endict['latitude_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['longitude_mean'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'ensemble-mean TC longitude'}, 'data': m_lon}
+        endict['longitude_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['min_slp_mean'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'ensemble-mean TC min. SLP'}, 'data': m_slp}
+        endict['min_slp_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['latitude_pert'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'EOF perturbation TC latitude'}, 'data': p_lat}
+        endict['latitude_pert'] = {'dtype': 'float32'}
+        f_met['data_vars']['longitude_pert'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'EOF perturbation TC longitude'}, 'data': p_lon}
+        endict['longitude_pert'] = {'dtype': 'float32'}
+        f_met['data_vars']['min_slp_pert'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'EOF perturbation TC min. SLP'}, 'data': dslp}
+        endict['min_slp_pert'] = {'dtype': 'float32'}
+        f_met['data_vars']['fore_met_init'] = {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'integrated track PC'}, 'data': pc1.data}
+
+        xr.Dataset.from_dict(f_met).to_netcdf(self.outdir + "/{0}_f{1}_trackint.nc".format(str(self.datea_str), '%0.3i' % fhr2), encoding=endict)
 
         self.metlist.append('f{0}_trackint'.format('%0.3i' % fhr2))
-
-
 
  
     def __precipitation_mean(self):
