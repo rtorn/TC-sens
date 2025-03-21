@@ -211,6 +211,10 @@ class ComputeForecastMetrics:
         if self.config['metric'].get('precip_eof_metric', 'False') == 'True':
            self.__precipitation_eof()
 
+        #  Compute wind/precipitation EOF metric
+        if eval(self.config['metric'].get('wind_precip_eof_metric', 'True')):
+           self.__wind_precip_eof()
+
 
     def get_metlist(self):
         '''
@@ -2395,6 +2399,543 @@ class ComputeForecastMetrics:
             "{0}/{1}_f{2}_{3}.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2,metname), encoding={'fore_met_init': {'dtype': 'float32'}})
 
         self.metlist.append('f{0}_{1}'.format('%0.3i' % fhr2, metname))
+
+        del f_met
+
+
+    def __wind_precip_eof(self):
+
+        metname = 'wndpcp'
+        eofn    = 1
+
+
+        #  First, determine the domain for the max. wind speed metric
+        fhr1w = int(self.config['metric'].get('wind_speed_eof_forecast_hour1','48'))
+        fhr2w = int(self.config['metric'].get('wind_speed_eof_forecast_hour2','96'))
+        fint = int(self.config['metric'].get('fcst_int',self.config['model']['fcst_hour_int']))
+        tcmet_buff = float(self.config['metric'].get('wind_speed_eof_dom_buffer',300.0))
+        mask_land = eval(self.config['metric'].get('land_mask','False'))
+        tcmetw = eval(self.config['metric'].get('wind_speed_eof_adapt','True'))
+
+        infile = self.config['metric'].get('wind_speed_metric_file').format(self.datea_str,self.storm)
+        if os.path.isfile(infile):
+           try:
+              conf = configparser.ConfigParser()
+              conf.read(infile)
+              fhr1w = int(conf['definition'].get('forecast_hour1',fhr1w))
+              fhr2w = int(conf['definition'].get('forecast_hour2',fhr2w))
+              lat1 = float(conf['definition'].get('latitude_min','-9999.'))
+              lat2 = float(conf['definition'].get('latitude_max','-9999.'))
+              lon1 = float(conf['definition'].get('longitude_min','-9999.'))
+              lon2 = float(conf['definition'].get('longitude_max','-9999.'))
+              tcmetw = eval(conf['definition'].get('adapt',str(tcmetw)))
+              tcmet_buff = float(conf['definition'].get('dom_buffer',tcmet_buff))
+              mask_land = eval(conf['definition'].get('land_mask',mask_land))
+           except:
+              logging.warning('  Error reading {0}.  Using parameter and/or default values'.format(infile))
+
+        confgrib = copy.deepcopy(self.config)
+        if self.storm[-1] == "e" or self.storm[-1] == "c":
+           confgrib['model']['flip_lon'] = 'True'
+
+        g1 = self.dpp.ReadGribFiles(self.datea_str, fhr1w, confgrib)
+
+        if tcmetw:
+
+           lat1 = 90.0
+           lat2 = -90.0
+           if self.storm[-1] == "e" or self.storm[-1] == "c":
+              lon1 = 360.0
+              lon2 = 0.0
+           else:
+              lon1 = 180.0
+              lon2 = -180.0
+
+           for fhr in range(fhr1w, fhr2w+fint, fint):
+
+              lat, lon=self.atcf.ens_lat_lon_time(fhr)
+              for n in range(self.nens):
+                 if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+
+                    if self.storm[-1] == "e" or self.storm[-1] == "c":
+                       lon[n] = (lon[n] + 360.) % 360.
+
+                    lat1 = np.min([lat1, lat[n]])
+                    lat2 = np.max([lat2, lat[n]])
+                    lon1 = np.min([lon1, lon[n]])
+                    lon2 = np.max([lon2, lon[n]])
+
+           #  Bail out of the metric if no TC positions are present for the time window.
+           if lat1 >= 90.0 or lat2 <= -90.0:
+
+              logging.error('  TC Wind Metric does not have any TC positions in the time window.  Skipping metric.')
+              return None
+
+           dlat = np.ceil(np.degrees(tcmet_buff / self.earth_radius))
+           dlon = np.ceil(np.degrees(tcmet_buff / (self.earth_radius*np.cos(np.radians(np.max(np.abs([lat1,lat2])))))))
+
+           lat1 = lat1 - dlat
+           lat2 = lat2 + dlat
+           lon1 = lon1 - dlon
+           lon2 = lon2 + dlon
+
+
+        lat1w = lat1
+        lat2w = lat2
+        lon1w = lon1
+        lon2w = lon2
+
+
+        #  Next, calculate the precipitation domain
+        fhr1p = int(self.config['metric'].get('precip_eof_forecast_hour1','48'))
+        fhr2p = int(self.config['metric'].get('precip_eof_forecast_hour2','120'))
+        fint = int(self.config['metric'].get('fcst_int',self.config['model']['fcst_hour_int']))
+        tcmet_space_dbuff = float(self.config['metric'].get('precip_eof_dom_buffer',300.0))
+        lmaskmin = float(self.config['metric'].get('land_mask_minimum','0.2'))
+        mask_land = eval(self.config['metric'].get('precip_eof_land_mask','True'))
+        tcmetp = eval(self.config['metric'].get('precip_eof_adapt','True'))
+        tcmet_time_adapt = eval(self.config['metric'].get('precip_eof_time_adapt','False'))
+        tcmet_time_dbuff = float(self.config['metric'].get('precip_eof_time_adapt_domain',2.0))
+        tcmet_time_freq  = int(self.config['metric'].get('precip_eof_time_adapt_freq',6))
+        pcpmin = float(self.config['metric'].get('precip_eof_adapt_pcp_min','12'))
+
+        lat1 = 91.0
+        lat2 = -91.0
+        if self.storm[-1] == "e" or self.storm[-1] == "c":
+           lon1 = 361.0
+           lon2 = -1.0
+        else:
+           lon1 = 181.0
+           lon2 = -181.0
+
+        #  Read initialization-time specific metric definition file, if it exists, otherwise use defaults
+        infile = self.config['metric'].get('precip_metric_file').format(self.datea_str,self.storm)
+        if os.path.isfile(infile):
+           try:
+              conf = configparser.ConfigParser()
+              conf.read(infile)
+              fhr1p = int(conf['definition'].get('forecast_hour1',fhr1p))
+              fhr2p = int(conf['definition'].get('forecast_hour2',fhr2p))
+              lat1 = float(conf['definition'].get('latitude_min',lat1))
+              lat2 = float(conf['definition'].get('latitude_max',lat2))
+              lon1 = float(conf['definition'].get('longitude_min',lon1))
+              lon2 = float(conf['definition'].get('longitude_max',lon2))
+              tcmetp = eval(conf['definition'].get('adapt',str(tcmetp)))
+              tcmet_space_dbuff = float(conf['definition'].get('dom_buffer',tcmet_space_dbuff))
+              tcmet_time_adapt = eval(conf['definition'].get('time_adapt',str(tcmet_time_adapt)))
+              tcmet_time_dbuff = float(conf['definition'].get('time_adapt_domain',tcmet_time_dbuff))
+              tcmet_time_freq = int(conf['definition'].get('time_adapt_freq',tcmet_time_freq))
+              pcpmin = float(conf['definition'].get('adapt_pcp_min',pcpmin))
+              lmaskmin = float(conf['definition'].get('land_mask_minimum',lmaskmin))
+              mask_land = eval(conf['definition'].get('land_mask',mask_land))
+           except:
+              logging.warning('  Error reading {0}.  Using parameter and/or default values'.format(infile))
+
+
+        #  Identify a draft domain based on TC track, land, and time frame (if desired)
+        if tcmetp:
+
+           if lat1 >= 90. or lat2 <= -90. or lon1 >= 360.0 or lon2 <= -180.0 :
+
+              #  Loop over all times in forecast window, find the min/max of latitude/longitude of track
+              for fhr in range(fhr1p, fhr2p+fint, fint):
+
+                 lat, lon=self.atcf.ens_lat_lon_time(fhr)
+                 for n in range(self.nens):
+                    if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+
+                       if self.storm[-1] == "e" or self.storm[-1] == "c":
+                          lon[n] = (lon[n] + 360.) % 360.
+
+                       lat1 = np.min([lat1, lat[n]])
+                       lat2 = np.max([lat2, lat[n]])
+                       lon1 = np.min([lon1, lon[n]])
+                       lon2 = np.max([lon2, lon[n]])
+
+              #  Bail out of the metric if no TC positions are present for the time window.
+              if lat1 >= 90.0 or lat2 <= -90.0:
+
+                 logging.error('  TC Precipitation Metric does not have any TC positions in the time window.  Skipping metric.')
+                 return None
+
+              dlat = np.ceil(np.degrees(tcmet_space_dbuff / self.earth_radius))
+              dlon = np.ceil(np.degrees(tcmet_space_dbuff / (self.earth_radius*np.cos(np.radians(np.max(np.abs([lat1,lat2])))))))
+
+              lat1 = lat1 - dlat
+              lat2 = lat2 + dlat
+              lon1 = lon1 - dlon
+              lon2 = lon2 + dlon
+
+           #  Now figure out the 24 h after landfall, so we can set the appropriate 24 h period.
+           if tcmet_time_adapt:
+
+              vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
+                       'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
+              if self.storm[-1] == "e" or self.storm[-1] == "c":
+                 vDict['flip_lon'] = 'True'
+              vDict = g1.set_var_bounds('precipitation', vDict)
+              lmask = g1.read_static_field(self.config['metric'].get('static_fields_file'), 'landmask', vDict)
+
+              #  Read precipitation over the default window, calculate SD, search for maximum value
+              ensmat = self.__read_precip(fhr1p, fhr2p, confgrib, vDict)
+              e_std = np.std(ensmat, axis=0)
+              estd_mask = e_std.values[:,:] * lmask.values[:,:]
+
+              maxloc = np.where(estd_mask == estd_mask.max())
+              lonc   = ensmat.longitude.values[int(maxloc[1])]
+              latc   = ensmat.latitude.values[int(maxloc[0])]
+
+              tDict = {'latitude': (latc-tcmet_time_dbuff-0.00001, latc+tcmet_time_dbuff),
+                       'longitude': (lonc-tcmet_time_dbuff-0.00001, lonc+tcmet_time_dbuff),
+                       'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
+
+              logging.info('    Precip. Time Adapt: Lat/Lon center: {0}, {1}'.format(latc,lonc))
+
+              pmax = -1.0
+              for fhr in range(fhr1p, fhr2p-24+tcmet_time_freq, tcmet_time_freq):
+
+                 psum = np.sum(np.mean(self.__read_precip(fhr, fhr+24, confgrib, tDict), axis=0))
+                 if psum > pmax:
+                    fhr1p = fhr
+                    fhr2p = fhr+24
+                    pmax = psum
+
+
+        #  Read the total precipitation, scale to a 24 h value 
+        vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
+                    'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
+        enspcp = self.__read_precip(fhr1p, fhr2p, confgrib, vDict)
+        enspcp[:,:,:] = enspcp[:,:,:] * 24. / float(fhr2p-fhr1p)
+
+        e_mean_pcp = np.mean(enspcp, axis=0)
+        e_std_pcp  = np.std(enspcp, axis=0)
+        for n in range(self.nens):
+           enspcp[n,:,:] = enspcp[n,:,:] - e_mean_pcp[:,:]
+
+        if mask_land:
+
+           if self.storm[-1] == "e" or self.storm[-1] == "c":
+              vDict['flip_lon'] = 'True'
+           lmaskp = g1.read_static_field(self.config['metric'].get('static_fields_file'), 'landmask', vDict)
+
+        else:
+
+           lmaskp      = np.ones(e_mean.shape)
+           lmaskp[:,:] = 1.0
+
+
+        #  Find the location of precipitation max. and then the area over which this exceeds a certain threshold
+        if tcmetp:
+
+           nlon  = len(e_mean_pcp.longitude.values)
+           nlat  = len(e_mean_pcp.latitude.values)
+
+           e_std_pcp[:,:] = e_std_pcp[:,:] * lmaskp.values[:,:]
+
+           stdmax = e_std_pcp.max()
+           maxloc = np.where(e_std_pcp == stdmax)
+           icen   = int(maxloc[1])
+           jcen   = int(maxloc[0])
+           lonc   = e_mean_pcp.longitude.values[icen]
+           latc   = e_mean_pcp.latitude.values[jcen]
+
+           iloc       = np.zeros(nlon*nlat, dtype=int)
+           jloc       = np.zeros(nlon*nlat, dtype=int)
+           nloc       = 0
+           pcp_std_sum= 0.
+
+           fmgridp = e_mean_pcp.copy()
+           fmgridp[:,:] = 0.0
+           if e_mean_pcp[jcen,icen] > pcpmin and lmaskp[jcen,icen] >= lmaskmin:
+              fmgridp[jcen,icen] = 1.0
+              iloc[nloc] = icen
+              jloc[nloc] = jcen
+              pcp_std_sum = e_std_pcp[jcen,icen]
+
+
+           k = 0
+           while k <= nloc:
+
+              for i in range(max(iloc[k]-1,0), min(iloc[k]+2,nlon)):
+                 for j in range(max(jloc[k]-1,0), min(jloc[k]+2,nlat)):
+                    if e_mean_pcp[j,i] >= pcpmin and lmaskp[j,i] >= lmaskmin and fmgridp[j,i] < 1.0:
+                       nloc = nloc + 1
+                       iloc[nloc]  = i
+                       jloc[nloc]  = j
+                       fmgridp[j,i] = 1.0
+                       pcp_std_sum = pcp_std_sum + e_std_pcp[j,i]
+
+              k = k + 1
+
+           #  Find the grid bounds for the precipitation domain (for plotting purposes)
+           i1 = nlon-1
+           i2 = 0
+           j1 = nlat-1
+           j2 = 0
+           for i in range(nlon):
+              for j in range(nlat):
+                 if fmgridp[j,i] > 0.0:
+                    i1 = np.minimum(i,i1)
+                    i2 = np.maximum(i,i2)
+                    j1 = np.minimum(j,j1)
+                    j2 = np.maximum(j,j2)
+
+           i1 = np.maximum(i1-5,0)
+           i2 = np.minimum(i2+5,nlon-1)
+           j1 = np.maximum(j1-5,0)
+           j2 = np.minimum(j2+5,nlat-1)
+
+           lat1p = enspcp.latitude.values[j1]
+           lat2p = enspcp.latitude.values[j2]
+           lon1p = enspcp.longitude.values[i1]
+           lon2p = enspcp.longitude.values[i2]
+           nlatp = nlat
+           nlonp = nlon
+
+
+        #  Calculate the maximum wind speed metric within this domain
+        if tcmetw:
+
+           vDict = {'latitude': (lat1w-0.00001, lat2w), 'longitude': (lon1w-0.00001, lon2w),
+                    'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
+
+           vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
+
+           fmgridw = g1.read_grib_field('zonal_wind_10m', 0, vDict).squeeze()
+           fmgridw[:,:] = 0.
+           lonarr, latarr = np.meshgrid(fmgridw.longitude.values,fmgridw.latitude.values)
+
+           for fhr in range(fhr1w, fhr2w+fint, fint):
+
+              lat, lon=self.atcf.ens_lat_lon_time(fhr)
+              for n in range(self.nens):
+                 if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+
+                    if self.storm[-1] == "e" or self.storm[-1] == "c":
+                       lon[n] = (lon[n] + 360.) % 360.
+
+                    tcdist = great_circle(lon[n], lat[n], lonarr, latarr)
+                    fmgridw[:,:] = np.where(tcdist <= tcmet_buff, 1.0, fmgridw)
+
+        else:
+
+           vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
+                    'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
+           vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
+
+           fmgridw = g1.read_grib_field('zonal_wind_10m', 0, vDict).squeeze()
+           fmgridw[:,:] = 1.
+
+
+        enswnd = g1.create_ens_array('zonal_wind_10m', self.nens, vDict)
+        enswnd[:,:,:] = 0.
+
+        for fhr in range(fhr1w, fhr2w+fint, fint):
+
+           g1 = self.dpp.ReadGribFiles(self.datea_str, fhr, confgrib)
+
+           for n in range(self.nens):
+              uwnd = g1.read_grib_field('zonal_wind_10m', n, vDict).squeeze()
+              vwnd = g1.read_grib_field('meridional_wind_10m', n, vDict).squeeze()
+              enswnd[n,:,:] = np.maximum(enswnd[n,:,:],np.sqrt(uwnd[:,:]**2 + vwnd[:,:]**2))
+
+        if uwnd.units != 'knots':
+           enswnd[:,:,:] = enswnd[:,:,:] * 1.94
+
+        nlatw      = len(enswnd[0,:,0])
+        nlonw      = len(enswnd[0,0,:])
+        e_mean_wnd = np.mean(enswnd, axis=0)
+        e_std_wnd  = np.std(enswnd, axis=0)
+        e_plot_wnd = np.mean(enswnd, axis=0)
+        for n in range(self.nens):
+           enswnd[n,:,:] = enswnd[n,:,:] - e_mean_wnd[:,:]
+
+
+        ngrid = -1
+        ensarr = xr.DataArray(name='ensemble_data', data=np.zeros([self.nens, nlonw*nlatw+nlonp*nlatp]), \
+                                dims=['time', 'state'])
+
+        incpcp = np.sum(fmgridp) > 0.0
+        if incpcp:
+           wscale = pcp_std_sum.data / np.sum(e_std_wnd[:,:]*fmgridw[:,:]).data
+        else:
+           wscale = 1.
+
+        coslat = np.cos(np.deg2rad(enswnd.latitude.values)).clip(0., 1.)
+
+        for i in range(nlonw):
+           for j in range(nlatw):
+              if fmgridw[j,i] > 0.0:
+                 ngrid = ngrid + 1
+                 ensarr[:,ngrid] = enswnd[:,j,i].data * np.sqrt(coslat[j]) * wscale
+
+        coslat = np.cos(np.deg2rad(enspcp.latitude.values)).clip(0., 1.)
+
+        for i in range(nlonp):
+           for j in range(nlatp):
+              if fmgridp[j,i] > 0.0:
+                 ngrid = ngrid + 1
+                 ensarr[:,ngrid] = enspcp[:,j,i].data * np.sqrt(coslat[j])
+
+        solver = Eof_xarray(ensarr[:,0:ngrid])
+        pcout  = solver.pcs(npcs=3, pcscaling=1)
+        pc1 = np.squeeze(pcout[:,eofn-1])
+        pc1[:] = pc1[:] / np.std(pc1)
+
+        #  Compute the wind speed and precipitation pattern associated with a 1 PC perturbation
+        dwnd = np.zeros(e_mean_wnd.shape)
+        dpcp = np.zeros(e_mean_pcp.shape)
+
+        for n in range(self.nens):
+           dwnd[:,:] = dwnd[:,:] + enswnd[n,:,:] * pc1[n]
+           dpcp[:,:] = dpcp[:,:] + enspcp[n,:,:] * pc1[n]
+
+        dwnd[:,:] = dwnd[:,:] / float(self.nens)
+        dpcp[:,:] = dpcp[:,:] / float(self.nens)
+
+        if np.sum(dwnd) < 0.:
+           pc1[:]    = -pc1[:]
+           dwnd[:,:] = -dwnd[:,:]
+           dpcp[:,:] = -dpcp[:,:]
+
+
+        #  Create basic figure, including political boundaries and grid lines
+        lat1 = np.min([lat1w, lat1p])
+        lat2 = np.max([lat2w, lat2p])
+        lon1 = np.min([lon1w, lon1p])
+        lon2 = np.max([lon2w, lon2p])
+
+        plotBase = self.config.copy()
+        plotBase['subplot']       = 'True'
+        plotBase['grid_interval'] = self.config['vitals_plot'].get('grid_interval', 5)
+        plotBase['left_labels'] = 'None'
+        plotBase['right_labels'] = 'None'
+        plotBase['bottom_labels'] = 'None'
+
+        fsize = 9.0
+        dlat = lat2-lat1
+        dlon = lon2-lon1
+        if dlon < 1.75*dlat:
+           widefig = True
+           fsize   = (2*fsize*(dlon/dlat),fsize)
+           plotBase['subrows'] = 1
+           plotBase['subcols'] = 2
+        else:
+           widefig = False
+           fsize   = (fsize,2*fsize*(dlat/dlon)+0.5)
+           plotBase['subrows'] = 2
+           plotBase['subcols'] = 1
+
+        fig = plt.figure(figsize=fsize, constrained_layout=True)
+
+        colorlist = ("#FFFFFF", "#00ECEC", "#01A0F6", "#00BFFF", "#00FF00", "#00C800", "#009000", "#FFFF00", \
+                     "#E7C000", "#FF9000", "#FF0000", "#D60000", "#C00000", "#FF00FF", "#9955C9")
+
+        plotBase['subnumber']     = 1
+        ax1 = background_map(self.config['metric'].get('projection', 'PlateCarree'), lon1, lon2, lat1, lat2, plotBase)
+
+        mwnd = [0.0, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 100, 110]
+        norm = matplotlib.colors.BoundaryNorm(mwnd,len(mwnd))
+        pltf = plt.contourf(e_mean_wnd.longitude.values,e_mean_wnd.latitude.values,e_mean_wnd,mwnd,norm=norm,extend='max', \
+                             cmap=matplotlib.colors.ListedColormap(colorlist), alpha=0.5, antialiased=True, transform=ccrs.PlateCarree())
+
+        pltb = plt.contour(e_mean_wnd.longitude.values,e_mean_wnd.latitude.values,fmgridw,[0.5],linewidths=2.5, colors='0.4', zorder=10, transform=ccrs.PlateCarree())
+
+        cntrs = np.array([-5., -4., -3., -2., -1., 1., 2., 3., 4., 5]) * np.ceil(np.max(dwnd) / 5.0)
+        pltm = plt.contour(e_mean_wnd.longitude.values,e_mean_wnd.latitude.values,dwnd,cntrs,linewidths=1.5, colors='k', zorder=10, transform=ccrs.PlateCarree())
+
+        #  Add colorbar to the plot
+        cbar = plt.colorbar(pltf, fraction=0.12, aspect=45., pad=0.02, orientation='horizontal', ticks=mwnd, shrink=0.9)
+        cbar.set_ticks(mwnd[1:(len(mwnd)-1)])
+        cb = plt.clabel(pltm, inline_spacing=0.0, fontsize=12, fmt="%1.0f")
+        cbar.ax.tick_params(labelsize=9)
+
+        plt.title('{0}-{1} hour Maximum Wind Speed'.format(fhr1w,fhr2w), fontsize=12)
+
+        plotBase['subnumber']     = 2
+        ax2 = background_map(self.config['model'].get('projection', 'PlateCarree'), lon1, lon2, lat1, lat2, plotBase)
+
+        mpcp = [0.0, 0.25, 0.50, 1., 1.5, 2., 4., 6., 8., 12., 16., 24., 32., 64., 96., 97.]
+        norm = matplotlib.colors.BoundaryNorm(mpcp,len(mpcp))
+        pltf = plt.contourf(e_mean_pcp.longitude.values,e_mean_pcp.latitude.values,e_mean_pcp,mpcp, \
+                          cmap=matplotlib.colors.ListedColormap(colorlist), norm=norm, alpha=0.5, antialiased=True, extend='max')
+
+        pltb = plt.contour(e_mean_pcp.longitude.values,e_mean_pcp.latitude.values,fmgridp,[0.5],linewidths=2.5, colors='0.4', zorder=10)
+                   
+        #  Add colorbar to the plot
+        cbar = plt.colorbar(pltf, fraction=0.15, aspect=45., pad=0.02, orientation='horizontal', ticks=mpcp, shrink=0.9)
+        cbar.set_ticks(mpcp[1:(len(mpcp)-1)])
+        cbar.ax.tick_params(labelsize=9)
+
+        if incpcp:
+
+           pcpfac = np.ceil(np.max(dpcp) / 5.0)
+           cntrs = np.array([-5., -4., -3., -2., -1., 1., 2., 3., 4., 5]) * pcpfac
+           pltm = plt.contour(e_mean_pcp.longitude.values,e_mean_pcp.latitude.values,dpcp,cntrs,linewidths=1.5, colors='k', zorder=10)
+           cb = plt.clabel(pltm, inline_spacing=0.0, fontsize=12, fmt="%1.0f")
+
+        else:
+
+           plt.text((lon1+lon2)*0.5, (lat1+lat2)*0.5, 'Does Not Meet Precipitation\n Criteria For This Forecast', \
+                       fontsize=15, color='black', horizontalalignment='center', verticalalignment='center')
+
+        plt.title('{0}-{1} hour Precipitation'.format(fhr1p,fhr2p), fontsize=12)
+
+        pos = ax1.get_position()
+        if eofn == 1:
+           fracvar = solver.varianceFraction(neigs=1).data
+        else:
+           fracvar = solver.varianceFraction(neigs=eofn)[-1].data
+        fig.suptitle("{0} {1} forecast of {2}, {3} of variance".format(self.datea_str, self.config['model'].get('model_src',''), \
+                           self.storm, '%4.3f' % fracvar), y=pos.y0+pos.height+0.15, fontsize=14)
+
+        fhr2o = np.max([fhr2w, fhr2p])
+        outdir = '{0}/f{1}_{2}'.format(self.config['locations']['figure_dir'],'%0.3i' % fhr2o,metname)
+        if not os.path.isdir(outdir):
+           try:
+              os.makedirs(outdir)
+           except OSError as e:
+              raise e
+
+        plt.savefig('{0}/metric.png'.format(outdir), format='png', dpi=120, bbox_inches='tight')
+        plt.close(fig)
+
+        fmetatt = {'FORECAST_METRIC_LEVEL': '', 'FORECAST_METRIC_NAME': 'wind speed/precipitation PC', 'FORECAST_METRIC_SHORT_NAME': 'wndpcp', \
+                   'WIND_FORECAST_HOUR1': int(fhr1w), 'WIND_FORECAST_HOUR2': int(fhr2w), 'WIND_LATITUDE1': lat1w, 'WIND_LATITUDE2': lat2w, \
+                   'WIND_LONGITUDE1': lon1w, 'WIND_LONGITUDE2': lon2w, 'LAND_MASK': str(mask_land), 'WIND_ADAPT': str(tcmetw), 'DOM_BUFFER': tcmet_buff, \
+                   'PRECIP_FORECAST_HOUR1': int(fhr1p), 'PRECIP_FORECAST_HOUR2': int(fhr2p), 'PRECIP_LATITUDE1': lat1p, 'PRECIP_LATITUDE2': lat2p, \
+                   'PRECIP_LONGITUDE1': lon1p, 'PRECIP_LONGITUDE2': lon2p, 'LAND_MASK_MINIMUM': lmaskmin, 'PRECIP_ADAPT': str(tcmetp), 'TIME_ADAPT': str(tcmet_time_adapt), \
+                   'TIME_ADAPT_DOMAIN': tcmet_time_dbuff, 'TIME_ADAPT_FREQ': tcmet_time_freq, 'ADAPT_PCP_MIN': pcpmin, 'EOF_NUMBER': int(eofn)}
+
+        endict = {'fore_met_init': {'dtype': 'float32'}}
+
+        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens}, 'data_vars': {}}
+        f_met['coords']['longitude_wnd'] = {'dims': ('longitude_wnd'), 'attrs': {'units': 'degrees', 'description': 'longitude of grid points'}, 'data': enswnd.longitude.values}
+        endict['longitude_wnd'] = {'dtype': 'float32'}
+        f_met['coords']['latitude_wnd']  = {'dims': ('latitude_wnd'), 'attrs': {'units': 'degrees', 'description': 'latitude of grid points'}, 'data': enswnd.latitude.values}
+        endict['latitude_wnd'] = {'dtype': 'float32'}
+        f_met['coords']['longitude_pcp'] = {'dims': ('longitude_pcp'), 'attrs': {'units': 'degrees', 'description': 'longitude of grid points'}, 'data': enspcp.longitude.values}
+        endict['longitude_pcp'] = {'dtype': 'float32'}
+        f_met['coords']['latitude_pcp']  = {'dims': ('latitude_pcp'), 'attrs': {'units': 'degrees', 'description': 'latitude of grid points'}, 'data': enspcp.latitude.values}         
+        endict['latitude_pcp'] = {'dtype': 'float32'}
+
+        f_met['data_vars']['ensemble_mean_wnd'] = {'dims': ('latitude_wnd', 'longitude_wnd'), 'attrs': {'units': 'knots', 'description': 'maximum wind speed ensemble mean'}, 'data': e_mean_wnd.data}
+        endict['ensemble_mean_wnd'] = {'dtype': 'float32'}
+        f_met['data_vars']['EOF_pattern_wnd'] = {'dims': ('latitude_wnd', 'longitude_wnd'), 'attrs': {'units': 'knots', 'description': 'maximum wind speed EOF pattern'}, 'data': dwnd}
+        endict['EOF_pattern_wnd'] = {'dtype': 'float32'}
+        f_met['data_vars']['metric_domain_wnd'] = {'dims': ('latitude_wnd', 'longitude_wnd'), 'attrs': {'units': '', 'description': 'maximum wind speed metric domain'}, 'data': fmgridw.data}
+        endict['metric_domain_wnd'] = {'dtype': 'float32'}
+        f_met['data_vars']['ensemble_mean_pcp'] = {'dims': ('latitude_pcp', 'longitude_pcp'), 'attrs': {'units': 'mm', 'description': 'precipitation ensemble mean'}, 'data': e_mean_pcp.data}
+        endict['ensemble_mean_pcp'] = {'dtype': 'float32'}
+        f_met['data_vars']['EOF_pattern_pcp'] = {'dims': ('latitude_pcp', 'longitude_pcp'), 'attrs': {'units': 'mm', 'description': 'precipitation EOF pattern'}, 'data': dpcp}
+        endict['EOF_pattern_pcp'] = {'dtype': 'float32'}
+        f_met['data_vars']['metric_domain_pcp'] = {'dims': ('latitude_pcp', 'longitude_pcp'), 'attrs': {'units': '', 'description': ' precipitation metric domain'}, 'data': fmgridp.data}
+        endict['metric_domain_pcp'] = {'dtype': 'float32'}
+        f_met['data_vars']['fore_met_init'] = {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'wind speed/precipitation PC'}, 'data': pc1.data}
+
+        xr.Dataset.from_dict(f_met).to_netcdf("{0}/{1}_f{2}_{3}.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2o,metname), encoding=endict)
+
+        self.metlist.append('f{0}_{1}'.format('%0.3i' % fhr2o, metname))
 
         del f_met
 
