@@ -900,11 +900,28 @@ class ComputeForecastMetrics:
                    'FORECAST_HOUR1': int(fhr1), 'FORECAST_HOUR2': int(fhr2), 'X_DIRECTION_VECTOR': imsum, 'Y_DIRECTION_VECTOR': jmsum,  \
                    'EOF_NUMBER': int(1), 'FRACTION_VARIANCE': solver.varianceFraction(neigs=1), 'MIN_ENSEMBLE': int(ens_min)}
 
-        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens}, \
-                 'data_vars': {'fore_met_init': {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'integrated track PC'}, 'data': pc1.data}}}
+        fhrvec = np.arange(f1, f1+ntimes*6, 6)
+        m_lat = np.where(np.isnan(m_lat), -9999., m_lat)
+        m_lon = np.where(np.isnan(m_lon), -9999., m_lon)
+        p_lat = np.where(np.isnan(p_lat), -9999., p_lat)
+        p_lon = np.where(np.isnan(p_lon), -9999., p_lon)
+
+        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens, 'forecast_hour': len(fhrvec)}, 'data_vars': {}}
+        f_met['coords']['forecast_hour'] = {'dims': ('forecast_hour'), 'attrs': {'units': 'hours', 'description': 'forecast hour'}, 'data': fhrvec}        
+
+        endict = {'fore_met_init': {'dtype': 'float32'}, 'forecast_hour': {'dtype': 'float32'}}
+        f_met['data_vars']['latitude_mean'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'ensemble-mean TC latitude'}, 'data': m_lat}
+        endict['latitude_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['longitude_mean'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'ensemble-mean TC longitude'}, 'data': m_lon}
+        endict['longitude_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['latitude_pert'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'EOF perturbation TC latitude'}, 'data': p_lat}
+        endict['latitude_pert'] = {'dtype': 'float32'}
+        f_met['data_vars']['longitude_pert'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'EOF perturbation TC longitude'}, 'data': p_lon}
+        endict['longitude_pert'] = {'dtype': 'float32'}
+        f_met['data_vars']['fore_met_init'] = {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'integrated track PC'}, 'data': pc1.data}
 
         xr.Dataset.from_dict(f_met).to_netcdf(
-            "{0}/{1}_f{2}_intmajtrack.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2), encoding={'fore_met_init': {'dtype': 'float32'}})
+            "{0}/{1}_f{2}_intmajtrack.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2), encoding=endict)
 
         self.metlist.append('f{0}_intmajtrack'.format('%0.3i' % fhr2))
 
@@ -997,21 +1014,25 @@ class ComputeForecastMetrics:
 
            m_fhr[t] = fhr
            if e_cnt > 1:
+
              m_slp[t] = m_slp[t] / e_cnt
              m_wnd[t] = m_wnd[t] / e_cnt
+
+             #  Compute the MSLP trace associated with a 1 PC perturbation
+             for n in range(self.nens):
+               if ens_slp[n,t] != self.atcf.missing:
+                 dslp[t] = dslp[t] + (ens_slp[n,t]-m_slp[t]) * pc1[n] / e_cnt
+                 dwnd[t] = dwnd[t] + (ens_wnd[n,t]-m_wnd[t]) * pc1[n] / e_cnt
+
+             sumslp = sumslp + dslp[t]
+             
            else:
-             m_slp[t] = None
-             m_wnd[t] = None
 
-           #  Compute the MSLP trace associated with a 1 PC perturbation
-           for n in range(self.nens):
-              if ens_slp[n,t] != self.atcf.missing:
-                 dslp[t] = dslp[t] + (ens_slp[n,t]-m_slp[t]) * pc1[n]
-                 dwnd[t] = dwnd[t] + (ens_wnd[n,t]-m_wnd[t]) * pc1[n]
+             m_slp[t] = np.nan
+             m_wnd[t] = np.nan
+             dslp[t]  = np.nan
+             dwnd[t]  = np.nan
 
-           dslp[t] = dslp[t] / e_cnt
-           dwnd[t] = dwnd[t] / e_cnt
-           sumslp  = sumslp + dslp[t]
 
         #  Make sure that positive PC is always associated with intensification
         if sumslp > 0.:
@@ -1084,18 +1105,32 @@ class ComputeForecastMetrics:
         plt.savefig('{0}/metric.png'.format(outdir), format='png', dpi=150, bbox_inches='tight')
         plt.close(fig)
 
-        f_met_inteneof_nc = {'coords': {},
-                             'attrs': {'FORECAST_METRIC_LEVEL': '',
-                                       'FORECAST_METRIC_NAME': 'integrated min. SLP PC',
-                                       'FORECAST_METRIC_SHORT_NAME': 'inteneof'},
-                             'dims': {'num_ens': self.nens},
-                             'data_vars': {'fore_met_init': {'dims': ('num_ens',),
-                                                            'attrs': {'units': '',
-                                                                      'description': 'integrated min. SLP PC'},
-                                                            'data': pc1}}}
 
-        xr.Dataset.from_dict(f_met_inteneof_nc).to_netcdf(
-            self.outdir + "/{0}_f{1}_intmslp.nc".format(str(self.datea_str), '%0.3i' % fhr2), encoding={'fore_met_init': {'dtype': 'float32'}})
+        fmetatt = {'FORECAST_METRIC_LEVEL': '', 'FORECAST_METRIC_NAME': 'integrated min. SLP PC', 'FORECAST_METRIC_SHORT_NAME': 'inteneof', \
+                   'FORECAST_HOUR1': int(fhr1), 'FORECAST_HOUR2': int(fhr2), \
+                   'EOF_NUMBER': int(1), 'FRACTION_VARIANCE': solver.varianceFraction(neigs=1), 'MIN_ENSEMBLE': int(ens_min)}
+
+        m_slp = np.where(np.isnan(m_slp), -9999., m_slp)
+        m_wnd = np.where(np.isnan(m_wnd), -9999., m_wnd)
+        dslp  = np.where(np.isnan(dslp),  -9999., dslp)
+        dwnd  = np.where(np.isnan(dwnd),  -9999., dwnd)
+
+        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens, 'forecast_hour': len(m_fhr)}, 'data_vars': {}}
+        f_met['coords']['forecast_hour'] = {'dims': ('forecast_hour'), 'attrs': {'units': 'hours', 'description': 'forecast hour'}, 'data': m_fhr}
+
+        endict = {'fore_met_init': {'dtype': 'float32'}, 'forecast_hour': {'dtype': 'float32'}}
+        f_met['data_vars']['min_slp_mean'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'ensemble-mean TC min. SLP'}, 'data': m_slp}
+        endict['min_slp_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['max_wind_mean'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'ensemble-mean TC max. wind'}, 'data': m_wnd}
+        endict['max_wind_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['min_slp_pert'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'EOF perturbation TC min. SLP'}, 'data': dslp}
+        endict['min_slp_pert'] = {'dtype': 'float32'}
+        f_met['data_vars']['max_wind_pert'] = {'dims': ('forecast_hour'), 'attrs': {'_FillValue': -9999., 'units': 'degrees', 'description': 'EOF perturbation TC max. wind'}, 'data': dwnd}
+        endict['max_wind_pert'] = {'dtype': 'float32'}
+        f_met['data_vars']['fore_met_init'] = {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'integrated min. SLP PC'}, 'data': pc1.data}
+
+        xr.Dataset.from_dict(f_met).to_netcdf(
+            self.outdir + "/{0}_f{1}_intmslp.nc".format(str(self.datea_str), '%0.3i' % fhr2), encoding=endict)
 
         self.metlist.append('f{0}_intmslp'.format('%0.3i' % fhr2))
 
@@ -1248,8 +1283,8 @@ class ComputeForecastMetrics:
              aloj = np.radians(m_lat[t2]-m_lat[t1])*self.earth_radius
 
              veclen = np.sqrt(aloi*aloi + aloj*aloj)
-             aloi   = aloi / veclen
-             aloj   = aloj / veclen
+             aloi   = aloi / np.max([veclen,0.000001])
+             aloj   = aloj / np.max([veclen,0.000001])
              acri   = aloj
              acrj   = -aloi
 
@@ -2083,12 +2118,23 @@ class ComputeForecastMetrics:
         if 'lonc' in locals():
            fmetatt.update({'LATITUDE_CENTER': latc, 'LONGITUDE_CENTER': lonc})
 
-        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens}, \
-                 'data_vars': {'fore_met_init': {'dims': ('num_ens',), 'attrs': {'units': '', \
-                                                 'description': 'precipitation PC'}, 'data': pc1.data}}}
+        endict = {'fore_met_init': {'dtype': 'float32'}}
 
-        xr.Dataset.from_dict(f_met).to_netcdf(
-            "{0}/{1}_f{2}_{3}.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2,metname), encoding={'fore_met_init': {'dtype': 'float32'}})
+        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens}, 'data_vars': {}}
+        f_met['coords']['longitude'] = {'dims': ('longitude'), 'attrs': {'units': 'degrees', 'description': 'longitude of grid points'}, 'data': ensmat.longitude.values}
+        endict['longitude'] = {'dtype': 'float32'}
+        f_met['coords']['latitude']  = {'dims': ('latitude'), 'attrs': {'units': 'degrees', 'description': 'latitude of grid points'}, 'data': ensmat.latitude.values}
+        endict['latitude'] = {'dtype': 'float32'}
+
+        f_met['data_vars']['ensemble_mean'] = {'dims': ('latitude', 'longitude'), 'attrs': {'units': 'mm', 'description': 'precipitation ensemble mean'}, 'data': e_mean.data}
+        endict['ensemble_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['EOF_pattern'] = {'dims': ('latitude', 'longitude'), 'attrs': {'units': 'mm', 'description': 'precipitation EOF pattern'}, 'data': dpcp}
+        endict['EOF_pattern'] = {'dtype': 'float32'}
+        f_met['data_vars']['metric_domain'] = {'dims': ('latitude', 'longitude'), 'attrs': {'units': '', 'description': ' precipitation metric domain'}, 'data': fmgrid.data}
+        endict['metric_domain'] = {'dtype': 'float32'}
+        f_met['data_vars']['fore_met_init'] = {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'precipitation PC'}, 'data': pc1.data}
+
+        xr.Dataset.from_dict(f_met).to_netcdf("{0}/{1}_f{2}_{3}.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2,metname), encoding=endict)
 
         self.metlist.append('f{0}_{1}'.format('%0.3i' % fhr2, metname))
 
@@ -2255,9 +2301,9 @@ class ComputeForecastMetrics:
 
            vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
 
-           gwght = g1.read_grib_field('zonal_wind_10m', 0, vDict).squeeze()
-           gwght[:,:] = 0.
-           lonarr, latarr = np.meshgrid(gwght.longitude.values,gwght.latitude.values)
+           fmgrid = g1.read_grib_field('zonal_wind_10m', 0, vDict).squeeze()
+           fmgrid[:,:] = 0.
+           lonarr, latarr = np.meshgrid(fmgrid.longitude.values,fmgrid.latitude.values)
 
            for fhr in range(fhr1, fhr2+fint, fint):
 
@@ -2269,7 +2315,7 @@ class ComputeForecastMetrics:
                        lon[n] = (lon[n] + 360.) % 360.
 
                     tcdist = great_circle(lon[n], lat[n], lonarr, latarr)
-                    gwght[:,:] = np.where(tcdist <= tcmet_buff, 1.0, gwght)
+                    fmgrid[:,:] = np.where(tcdist <= tcmet_buff, 1.0, fmgrid)
 
         else:
 
@@ -2277,8 +2323,8 @@ class ComputeForecastMetrics:
                     'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
            vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
 
-           gwght = g1.read_grib_field('zonal_wind_10m', 0, vDict).squeeze()
-           gwght[:,:] = 1.
+           fmgrid = g1.read_grib_field('zonal_wind_10m', 0, vDict).squeeze()
+           fmgrid[:,:] = 1.
 
         logging.warning('  Metric Bounds, Hours: {0}-{1}, Lat: {2}-{3}, Lon: {4}-{5}'.format(fhr1,fhr2,lat1,lat2,lon1,lon2))
 
@@ -2318,7 +2364,7 @@ class ComputeForecastMetrics:
 
            for i in range(nlon):
               for j in range(nlat):
-                 if lmask[j,i] > 0.0 and gwght[j,i] > 0.0:
+                 if lmask[j,i] > 0.0 and fmgrid[j,i] > 0.0:
                     ngrid = ngrid + 1
                     ensarr[:,ngrid] = ensmat[:,j,i] * np.sqrt(coslat[j]) * lmask[j,i]
 
@@ -2326,7 +2372,7 @@ class ComputeForecastMetrics:
 
            for i in range(nlon):
               for j in range(nlat):
-                 if gwght[j,i] > 0.0:
+                 if fmgrid[j,i] > 0.0:
                     ngrid = ngrid + 1
                     ensarr[:,ngrid] = ensmat[:,j,i].data * np.sqrt(coslat[j])
 
@@ -2361,7 +2407,7 @@ class ComputeForecastMetrics:
         pltf = plt.contourf(ensmat.longitude.values,ensmat.latitude.values,e_plot,mwnd,norm=norm,extend='max', \
                              cmap=matplotlib.colors.ListedColormap(colorlist), alpha=0.5, antialiased=True, transform=ccrs.PlateCarree())
 
-        pltb = plt.contour(ensmat.longitude.values,ensmat.latitude.values,gwght,[0.5],linewidths=2.5, colors='0.4', zorder=10, transform=ccrs.PlateCarree())
+        pltb = plt.contour(ensmat.longitude.values,ensmat.latitude.values,fmgrid,[0.5],linewidths=2.5, colors='0.4', zorder=10, transform=ccrs.PlateCarree())
 
         cntrs = np.array([-5., -4., -3., -2., -1., 1., 2., 3., 4., 5]) * np.ceil(np.max(dwnd) / 5.0)
         pltm = plt.contour(ensmat.longitude.values,ensmat.latitude.values,dwnd,cntrs,linewidths=1.5, colors='k', zorder=10, transform=ccrs.PlateCarree())
@@ -2387,16 +2433,29 @@ class ComputeForecastMetrics:
         plt.savefig('{0}/metric.png'.format(outdir), format='png', dpi=120, bbox_inches='tight')
         plt.close(fig)
 
+
         fmetatt = {'FORECAST_METRIC_LEVEL': '', 'FORECAST_METRIC_NAME': 'wind speed PC', 'FORECAST_METRIC_SHORT_NAME': 'wndeof', \
                    'FORECAST_HOUR1': int(fhr1), 'FORECAST_HOUR2': int(fhr2), 'LATITUDE1': lat1, 'LATITUDE2': lat2, 'LONGITUDE1': lon1, \
-                   'LONGITUDE2': lon2, 'LAND_MASK': str(mask_land), 'ADAPT': str(tcmet), 'DOM_BUFFER': tcmet_buff, \
-                   'EOF_NUMBER': int(eofn)}
+                   'LONGITUDE2': lon2, 'LAND_MASK': str(mask_land), 'ADAPT': str(tcmet), 'DOM_BUFFER': tcmet_buff, 'EOF_NUMBER': int(eofn)}
 
-        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens}, \
-                 'data_vars': {'fore_met_init': {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'wind speed PC'}, 'data': pc1.data}}}
+        endict = {'fore_met_init': {'dtype': 'float32'}}
+
+        f_met = {'coords': {}, 'attrs': fmetatt, 'dims': {'num_ens': self.nens}, 'data_vars': {}}
+        f_met['coords']['longitude'] = {'dims': ('longitude'), 'attrs': {'units': 'degrees', 'description': 'longitude of grid points'}, 'data': ensmat.longitude.values}
+        endict['longitude'] = {'dtype': 'float32'}
+        f_met['coords']['latitude']  = {'dims': ('latitude'), 'attrs': {'units': 'degrees', 'description': 'latitude of grid points'}, 'data': ensmat.latitude.values}
+        endict['latitude'] = {'dtype': 'float32'}
+
+        f_met['data_vars']['ensemble_mean'] = {'dims': ('latitude', 'longitude'), 'attrs': {'units': 'knots', 'description': 'maximum wind speed ensemble mean'}, 'data': e_mean.data}
+        endict['ensemble_mean'] = {'dtype': 'float32'}
+        f_met['data_vars']['EOF_pattern'] = {'dims': ('latitude', 'longitude'), 'attrs': {'units': 'knots', 'description': 'maximum wind speed EOF pattern'}, 'data': dwnd}
+        endict['EOF_pattern'] = {'dtype': 'float32'}
+        f_met['data_vars']['metric_domain'] = {'dims': ('latitude', 'longitude'), 'attrs': {'units': '', 'description': 'maximum wind speed metric domain'}, 'data': fmgrid.data}
+        endict['metric_domain'] = {'dtype': 'float32'}
+        f_met['data_vars']['fore_met_init'] = {'dims': ('num_ens',), 'attrs': {'units': '', 'description': 'wind speed PC'}, 'data': pc1.data}
 
         xr.Dataset.from_dict(f_met).to_netcdf(
-            "{0}/{1}_f{2}_{3}.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2,metname), encoding={'fore_met_init': {'dtype': 'float32'}})
+            "{0}/{1}_f{2}_{3}.nc".format(self.outdir,str(self.datea_str),'%0.3i' % fhr2,metname), encoding=endict)
 
         self.metlist.append('f{0}_{1}'.format('%0.3i' % fhr2, metname))
 

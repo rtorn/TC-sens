@@ -88,8 +88,8 @@ def ComputeSensitivity(datea, fhr, metname, atcf, config):
    plotDict['fileTitle'] = 'TEST JHT-Torn ECMWF Sensitivity'
    plotDict['initDate']  = '{0}-{1}-{2} {3}:00:00'.format(datea[0:4],datea[4:6],datea[6:8],datea[8:10])
    plotDict['sig_value'] = scipy.stats.t.ppf(q=1.0-float(plotDict.get('significance_level','.05'))/2,df=nens)
-   plotDict['ring_center_lat']=float(plotDict['tcLat'])
-   plotDict['ring_center_lon']=float(plotDict['tcLon'])
+   plotDict['ring_center_lat']=[float(plotDict['tcLat'])]
+   plotDict['ring_center_lon']=[float(plotDict['tcLon'])]
    plotDict['bbnn'] = bbnn
 
    stceDict = plotDict.copy()
