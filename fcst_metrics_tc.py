@@ -1371,19 +1371,30 @@ class ComputeForecastMetrics:
         minLon = minLon - 2.5
         maxLon = maxLon + 2.5
 
-
         plotBase = self.config.copy()
         plotBase['subplot']       = 'True'
-        plotBase['subrows']       = 1
-        plotBase['subcols']       = 2
         plotBase['subnumber']     = 1
         plotBase['grid_interval'] = self.config['vitals_plot'].get('grid_interval', 5)
         plotBase['left_labels']   = 'True'
         plotBase['right_labels']  = 'None'
 
+        fsize = 9.0
+        dlat = maxLat-minLat
+        dlon = maxLon-minLon
+        if dlon < 1.75*dlat:
+           widefig = True
+           fsize   = (11,6.5)
+           plotBase['subrows'] = 1
+           plotBase['subcols'] = 2
+        else:
+           widefig = False
+           fsize   = (6.5,11)
+           plotBase['subrows'] = 2
+           plotBase['subcols'] = 1
+
         #  Create basic figure plotting options
-        fig = plt.figure(figsize=(11,6.5))
-        ax = background_map(self.config['vitals_plot'].get('projection', 'PlateCarree'), minLon, maxLon, minLat, maxLat, plotBase)
+        fig = plt.figure(figsize=fsize)
+        ax1 = background_map(self.config['vitals_plot'].get('projection', 'PlateCarree'), minLon, maxLon, minLat, maxLat, plotBase)
 
         x_ell = np.zeros(361)
         y_ell = np.zeros(361)
@@ -1398,11 +1409,11 @@ class ComputeForecastMetrics:
               y.append(ens_lat[n,t])
               x.append(ens_lon[n,t])
           if len(x) > 0:
-            ax.plot(x, y, color='lightgray', zorder=1, transform=ccrs.PlateCarree())
+            ax1.plot(x, y, color='lightgray', zorder=1, transform=ccrs.PlateCarree())
 
         #  Plot the ensemble mean and track perturbation
-        ax.plot(m_lon, m_lat, color='black', linewidth=3, zorder=15, transform=ccrs.PlateCarree())
-        ax.plot(p_lon, p_lat, '--', color='black', linewidth=3, zorder=15, transform=ccrs.PlateCarree())
+        ax1.plot(m_lon, m_lat, color='black', linewidth=3, zorder=15, transform=ccrs.PlateCarree())
+        ax1.plot(p_lon, p_lat, '--', color='black', linewidth=3, zorder=15, transform=ccrs.PlateCarree())
 
         #  Plot the ellipses and points 
         color_index = 0
@@ -1420,9 +1431,9 @@ class ComputeForecastMetrics:
                 x_ens.append(ens_lon[n,t])
 
             if e_cnt > 2:
-              ax.scatter(x_ens, y_ens, s=2, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
-              ax.scatter(m_lon[t], m_lat[t], s=14, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
-              ax.scatter(p_lon[t], p_lat[t], s=14, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
+              ax1.scatter(x_ens, y_ens, s=2, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
+              ax1.scatter(m_lon[t], m_lat[t], s=14, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
+              ax1.scatter(p_lon[t], p_lat[t], s=14, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
             else:
               break
 
@@ -1442,9 +1453,9 @@ class ComputeForecastMetrics:
             fac = 1. / (2. * (1. - rho * rho))
 
             if e_cnt > 2:
-              ax.scatter(x_ens, y_ens, s=2, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
-              ax.scatter(m_lon[t], m_lat[t], s=14, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
-              ax.scatter(p_lon[t], p_lat[t], s=14, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
+              ax1.scatter(x_ens, y_ens, s=2, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
+              ax1.scatter(m_lon[t], m_lat[t], s=14, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
+              ax1.scatter(p_lon[t], p_lat[t], s=14, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
             else:
               break
 
@@ -1478,12 +1489,18 @@ class ComputeForecastMetrics:
                   rdex = rdex + 1
                   break
 
-            ax.plot(x_ell, y_ell, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
+            ax1.plot(x_ell, y_ell, color=ellcol[color_index], zorder=20, transform=ccrs.PlateCarree())
 
             color_index += 1
 
 
-        ax = plt.subplot(1, 2, 2)
+        l, b, w, h = ax1.get_position().bounds
+
+        ax2 = plt.subplot(plotBase['subrows'], plotBase['subcols'], 2)
+        if widefig:
+          ax2.set_position([l+w+0.08, b, 0.4, h])
+        else:
+          ax2.set_position([l, b-1.5*h-0.04, w, 1.5*h])
 
         minval = 10000000000
         maxval = -10000000000.
@@ -1496,20 +1513,29 @@ class ComputeForecastMetrics:
               sens_y.append(ens_slp[n,t])
               minval = min([minval, ens_slp[n,t]])
               maxval = max([maxval, ens_slp[n,t]])
-          ax.plot(sens_x, sens_y, color='lightgray')
+          ax2.plot(sens_x, sens_y, color='lightgray')
 
-        ax.plot(m_fhr, m_slp, color='black', linewidth=3)
-        ax.plot(m_fhr, m_slp[:]+dslp[:], '--', color='black', linewidth=3)
+        ax2.plot(m_fhr, m_slp, color='black', linewidth=3)
+        ax2.plot(m_fhr, m_slp[:]+dslp[:], '--', color='black', linewidth=3)
 
-        ax.set_xlabel("Forecast Hour")
-        ax.set_ylabel("Minimum Pressure (hPa)")
+        ax2.set_xlabel("Forecast Hour")
+        ax2.set_ylabel("Minimum Pressure (hPa)")
         plt.xticks(range(0,240,24))
         plt.xlim(0, 120)
 
 
+        pos1 = ax1.get_position()
+        pos2 = ax2.get_position()
+        if widefig:
+          xp = 0.5*(pos1.x0+pos2.x0+pos2.width)
+          yp = pos2.y0+pos2.height+0.04
+        else:
+          xp = pos1.x0+pos1.width*0.5
+          yp = pos1.y0+pos1.height+0.04
+
         fracvar = '%4.3f' % solver.varianceFraction(neigs=1)
         fig.suptitle("{0} {1} forecast of {2}, {3} of variance".format(self.datea_str, \
-                           self.config['model'].get('model_src',''), self.storm, fracvar), fontsize=16)
+                       self.config['model'].get('model_src',''), self.storm, fracvar), x=xp, y=yp, fontsize=14)
 
         outdir = '{0}/f{1}_trackint'.format(self.config['locations']['figure_dir'],'%0.3i' % fhr2)
         if not os.path.isdir(outdir):
