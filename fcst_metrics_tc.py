@@ -2676,7 +2676,7 @@ class ComputeForecastMetrics:
            #  Now figure out the 24 h after landfall, so we can set the appropriate 24 h period.
            if tcmet_time_adapt:
 
-              vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
+              vDict = {'latitude': (lat1-0.00001, lat2+0.00001), 'longitude': (lon1-0.00001, lon2+0.00001),
                        'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
               if self.storm[-1] == "e" or self.storm[-1] == "c":
                  vDict['flip_lon'] = 'True'
@@ -2692,8 +2692,8 @@ class ComputeForecastMetrics:
               lonc   = ensmat.longitude.values[int(maxloc[1])]
               latc   = ensmat.latitude.values[int(maxloc[0])]
 
-              tDict = {'latitude': (latc-tcmet_time_dbuff-0.00001, latc+tcmet_time_dbuff),
-                       'longitude': (lonc-tcmet_time_dbuff-0.00001, lonc+tcmet_time_dbuff),
+              tDict = {'latitude': (latc-tcmet_time_dbuff-0.00001, latc+tcmet_time_dbuff+0.00001),
+                       'longitude': (lonc-tcmet_time_dbuff-0.00001, lonc+tcmet_time_dbuff+0.00001),
                        'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
 
               logging.info('    Precip. Time Adapt: Lat/Lon center: {0}, {1}'.format(latc,lonc))
@@ -2709,7 +2709,7 @@ class ComputeForecastMetrics:
 
 
         #  Read the total precipitation, scale to a 24 h value 
-        vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
+        vDict = {'latitude': (lat1-0.00001, lat2+0.00001), 'longitude': (lon1-0.00001, lon2+0.00001),
                     'description': 'precipitation', 'units': 'mm', '_FillValue': -9999.}
         enspcp = self.__read_precip(fhr1p, fhr2p, confgrib, vDict)
         enspcp[:,:,:] = enspcp[:,:,:] * 24. / float(fhr2p-fhr1p)
@@ -2740,12 +2740,17 @@ class ComputeForecastMetrics:
            e_std_pcp[:,:] = e_std_pcp[:,:] * lmaskp.values[:,:]
 
            stdmax = e_std_pcp.max()
-           maxloc = np.where(e_std_pcp == stdmax)
-           icen   = int(maxloc[1])
-           jcen   = int(maxloc[0])
+
+           if stdmax > 0.:
+             maxloc = np.where(e_std_pcp == stdmax)
+             icen   = int(maxloc[1])
+             jcen   = int(maxloc[0])
+           else:
+             icen   = 0
+             jcen   = 0
+
            lonc   = e_mean_pcp.longitude.values[icen]
            latc   = e_mean_pcp.latitude.values[jcen]
-
            iloc       = np.zeros(nlon*nlat, dtype=int)
            jloc       = np.zeros(nlon*nlat, dtype=int)
            nloc       = 0
@@ -2803,7 +2808,7 @@ class ComputeForecastMetrics:
         #  Calculate the maximum wind speed metric within this domain
         if tcmetw:
 
-           vDict = {'latitude': (lat1w-0.00001, lat2w), 'longitude': (lon1w-0.00001, lon2w),
+           vDict = {'latitude': (lat1w-0.00001, lat2w+0.00001), 'longitude': (lon1w-0.00001, lon2w+0.00001),
                     'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
 
            vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
@@ -2826,7 +2831,7 @@ class ComputeForecastMetrics:
 
         else:
 
-           vDict = {'latitude': (lat1-0.00001, lat2), 'longitude': (lon1-0.00001, lon2),
+           vDict = {'latitude': (lat1w-0.00001, lat2w+0.00001), 'longitude': (lon1w-0.00001, lon2w+0.00001),
                     'description': 'wind speed', 'units': 'm/s', '_FillValue': -9999.}
            vDict = g1.set_var_bounds('zonal_wind_10m', vDict)
 
@@ -2983,8 +2988,8 @@ class ComputeForecastMetrics:
 
         else:
 
-           plt.text((lon1+lon2)*0.5, (lat1+lat2)*0.5, 'Does Not Meet Precipitation\n Criteria For This Forecast', \
-                       fontsize=15, color='black', horizontalalignment='center', verticalalignment='center')
+           ax2.text((lon1+lon2)*0.5, (lat1+lat2)*0.5, 'Does Not Meet Precipitation\n Criteria For This Forecast', \
+                       fontsize=15, color='black', horizontalalignment='center', verticalalignment='center', transform=ccrs.PlateCarree())
 
         plt.title('{0}-{1} hour Precipitation'.format(fhr1p,fhr2p), fontsize=12)
 
