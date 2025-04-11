@@ -2511,10 +2511,18 @@ class ComputeForecastMetrics:
 
 
     def __wind_precip_eof(self):
+        '''
+        Function that computes the combination wind speed and precipitation EOF metric, which is 
+        calculated by taking the EOF of the 2D ensemble maximum wind speed and precipitation 
+        forecasts over a domain defined by the user in a text file.  The resulting forecast metric 
+        is the principal component of the EOF.  The function also plots a figure showing the 
+        ensemble mean and EOF perturbation pattern that is consistent with the EOF.
+        As of now, the metric uses the same text file parameters from the maximum wind speed and 
+        precipitation metrics independently.
+        '''
 
-        metname = 'wndpcp'
-        eofn    = 1
-
+        metname = self.config['metric'].get('wind_precip_eof_metric_name','wndpcp')
+        eofn    = int(self.config['metric'].get('wind_precip_eof_number', '1'))
 
         #  First, determine the domain for the max. wind speed metric
         fhr1w = int(self.config['metric'].get('wind_speed_eof_forecast_hour1','48'))
