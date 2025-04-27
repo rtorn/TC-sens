@@ -14,6 +14,8 @@ def unique_tcs_from_vitals(vitalfile, yyyymmddhh):
       yyyymmddhh (string):  date string of requested analysis time (yyyymmddhh format)
   '''
 
+  keep_invest = True
+
   #  Read tcvitals file using pandas
   df = pd.read_csv(filepath_or_buffer=vitalfile, header=None, sep = '\s+', engine='python', \
                    names=['ID', 'name', 'yyyymmdd', 'hhmm', 'latitude', 'longitude'], usecols=[1, 2, 3, 4, 5, 6])
@@ -27,7 +29,7 @@ def unique_tcs_from_vitals(vitalfile, yyyymmddhh):
   #  Construct the list of TC names and return the list
   stormlist = []
   for i in range(len(df.index)):
-    if int(df['ID'][i][0:2]) < 50:
+    if int(df['ID'][i][0:2]) < 50 or (int(df['ID'][i][0:2]) >= 90 and keep_invest):
       stormlist.append('{0}{1}'.format(df['name'][i].lower(),df['ID'][i].lower()))
 
   return(stormlist)
