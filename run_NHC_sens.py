@@ -260,7 +260,8 @@ def run_ens_sensitivity(datea, storm, paramfile):
           os.rename('{0}/{1}_{2}.nc'.format(config['locations']['work_dir'],datea,met), '{0}/.'.format(config['locations']['output_dir']))
 
     if ( config['locations'].get('archive_fields','False') == 'True' ):
-       os.rename('{0}/\*_ens.nc'.format(config['locations']['work_dir']), '{0}/.'.format(config['locations']['output_dir']))
+       for ensfile in glob.glob('{0}/*_ens.nc'.format(config['locations']['work_dir'])):
+          shutil.move(ensfile, '{0}/.'.format(config['locations']['output_dir']))
 
 
     #  Create a tar file of gridded sensitivity files, if needed
