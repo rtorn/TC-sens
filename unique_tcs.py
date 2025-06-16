@@ -17,12 +17,13 @@ def unique_tcs_from_vitals(vitalfile, yyyymmddhh):
   keep_invest = True
 
   #  Read tcvitals file using pandas
-  df = pd.read_csv(filepath_or_buffer=vitalfile, header=None, sep = '\s+', engine='python', \
+  df = pd.read_csv(filepath_or_buffer=vitalfile, header=None, sep = '\s+', engine='python', dtype=str, \
                    names=['ID', 'name', 'yyyymmdd', 'hhmm', 'latitude', 'longitude'], usecols=[1, 2, 3, 4, 5, 6])
 
   #  Scan dataframe for lines that match analysis time and remove duplicate storms
-  df = df.loc[(df['yyyymmdd'] == int(yyyymmddhh[0:8])) & (df['hhmm'] == (int(yyyymmddhh[8:10])*100))].reset_index()
+  df = df.loc[(df['yyyymmdd'] == yyyymmddhh[0:8]) & (df['hhmm'] == '{0}00'.format(yyyymmddhh[8:10]))].reset_index()
   df.drop_duplicates(subset=['ID'], inplace=True, ignore_index=True)
+
   if df.empty:
     return([])
 
