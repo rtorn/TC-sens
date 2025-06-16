@@ -13,8 +13,8 @@ model_dir=/public/data/grids/gens
 
 work_dir=/rt11/torn/JHT/work_gefs
 output_dir=/rt11/torn/JHT/output
-figure_dir=/home11/staff/torn/html/HOT-alt/GEFS
-outgrid_dir=/home11/staff/torn/html/HOT-alt/GEFS/grid
+figure_dir=/home11/staff/torn/html/HOT/GEFS
+outgrid_dir=/home11/staff/torn/html/HOT/GEFS/grid
 log_dir=/rt11/torn/JHT/log_gefs
 
 save_work_dir=True
