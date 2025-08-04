@@ -17,7 +17,7 @@ def unique_tcs_from_vitals(vitalfile, yyyymmddhh):
   keep_invest = True
 
   #  Read tcvitals file using pandas
-  df = pd.read_csv(filepath_or_buffer=vitalfile, header=None, sep = '\s+', engine='python', dtype=str, \
+  df = pd.read_csv(filepath_or_buffer=vitalfile, header=None, sep = '\\s+', engine='python', dtype=str, \
                    names=['ID', 'name', 'yyyymmdd', 'hhmm', 'latitude', 'longitude'], usecols=[1, 2, 3, 4, 5, 6])
 
   #  Scan dataframe for lines that match analysis time and remove duplicate storms
