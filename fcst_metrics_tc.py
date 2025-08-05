@@ -2061,6 +2061,10 @@ class ComputeForecastMetrics:
                     ngrid = ngrid + 1
                     ensarr[:,ngrid] = ensmat[:,j,i].data * np.sqrt(coslat[j])
 
+           if ngrid < 4:
+              logging.error('  TC precipitation metric does not have enough grid points.  Skipping metric.')
+              return None
+
            solver = Eof_xarray(ensarr[:,0:ngrid])
 
            #  Restrict domain for plotting purposes
@@ -2088,6 +2092,10 @@ class ComputeForecastMetrics:
                     if lmask[j,i] > 0.0:
                        ngrid = ngrid + 1
                        ensarr[:,ngrid] = ensmat[:,j,i].data * np.sqrt(coslat[j]) * lmask[j,i].data
+
+              if ngrid < 4:
+                 logging.error('  TC precipitation metric does not have enough grid points.  Skipping metric.')
+                 return None
 
               solver = Eof_xarray(ensarr[:,0:ngrid])
 
@@ -2875,7 +2883,7 @@ class ComputeForecastMetrics:
         ensarr = xr.DataArray(name='ensemble_data', data=np.zeros([self.nens, nlonw*nlatw+nlonp*nlatp]), \
                                 dims=['time', 'state'])
 
-        incpcp = np.sum(fmgridp) > 0.0
+        incpcp = (np.sum(fmgridp) > 0.0) and (nloc > 4)
         if incpcp:
            wscale = pcp_std_sum.data / np.sum(e_std_wnd[:,:]*fmgridw[:,:]).data
         else:
@@ -2893,7 +2901,7 @@ class ComputeForecastMetrics:
 
         for i in range(nlonp):
            for j in range(nlatp):
-              if fmgridp[j,i] > 0.0:
+              if fmgridp[j,i] > 0.0 and nloc > 4:
                  ngrid = ngrid + 1
                  ensarr[:,ngrid] = enspcp[:,j,i].data * np.sqrt(coslat[j])
 
