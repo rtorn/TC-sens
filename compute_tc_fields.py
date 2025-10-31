@@ -170,7 +170,8 @@ def ComputeTCFields(datea, fhr, atcf, config):
 
           #  Compute the streamfunction of the steering wind
           psi = surgery.wind_streamfunction(np.squeeze(uint) / abs(pres[-1]-pres[0]), np.squeeze(vint) / abs(pres[-1]-pres[0]))
-          psi[:,:] = psi[:,:] - np.mean(psi)
+          psi[:,:] = psi[:,:] - psi.weighted(np.cos(np.deg2rad(psi['latitude']))).mean(dim=['latitude', 'longitude'])
+          #psi[:,:] = psi[:,:] - np.mean(psi)
           sensmat[n,:,:] = np.squeeze(psi.sel(latitude=slice(slat1, slat2), longitude=slice(lon1, lon2))) * 1.0e-6
 
           #  Compute the vorticity associated with the steering wind
