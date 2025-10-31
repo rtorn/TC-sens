@@ -1996,7 +1996,25 @@ class ComputeForecastMetrics:
               logging.error('  TC precipitation metric does not have any land points.  Skipping metric.')
               return None
 
-           estd_mask = e_std.values[:,:] * lmask.values[:,:]
+           fmgrid = e_mean.copy(deep=True)
+           fmgrid[:,:] = 0.0
+           lonarr, latarr = np.meshgrid(e_mean.longitude.values,e_mean.latitude.values)
+
+           #  Make sure the grid point of maximum std is within the TC radius
+           for fhr in range(fhr1, fhr2+fint, fint):
+
+              lat, lon=self.atcf.ens_lat_lon_time(fhr)
+              for n in range(self.nens):
+                 if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+
+                    if self.storm[-1] == "e" or self.storm[-1] == "c":
+                       lon[n] = (lon[n] + 360.) % 360.
+
+                    tcdist = great_circle(lon[n], lat[n], lonarr, latarr)
+                    fmgrid[:,:] = np.where(tcdist <= tcmet_space_dbuff, 1.0, fmgrid)
+
+
+           estd_mask = e_std.values[:,:] * lmask.values[:,:] * fmgrid[:,:]
 
            stdmax = estd_mask.max()
            maxloc = np.where(estd_mask == stdmax)
@@ -2005,7 +2023,6 @@ class ComputeForecastMetrics:
            lonc   = e_mean.longitude.values[icen]
            latc   = e_mean.latitude.values[jcen]
  
-           fmgrid = e_mean.copy()
            fmgrid[:,:] = 0.0
            fmgrid[jcen,icen] = 1.0
 
@@ -2073,9 +2090,26 @@ class ComputeForecastMetrics:
            lat1 = ensmat.latitude.values[j1]
            lat2 = ensmat.latitude.values[j2]
 
-           ensmat = ensmat.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2))
-           fmgrid = fmgrid.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2))
-           e_mean = e_mean.sel(latitude=slice(lat1, lat2), longitude=slice(lon1, lon2))
+           if (lat2-lat1) < 5.0 and (lon2-lon1) < 5.0:
+              latm = 0.5*(lat1+lat2)
+              lonm = 0.5*(lon1+lon2)
+              lon1 = lon1 - 2.5
+              lon2 = lon2 + 2.5
+              if lat2 > lat1:
+                 lat1 = lat1 - 2.5
+                 lat2 = lat2 + 2.5
+              else:
+                 lat1 = lat1 + 2.5
+                 lat2 = lat2 - 2.5
+
+           ensmat = ensmat.sel(latitude=slice(lat1-0.00001, lat2+0.00001), longitude=slice(lon1-0.00001, lon2+0.00001))
+           fmgrid = fmgrid.sel(latitude=slice(lat1-0.00001, lat2+0.00001), longitude=slice(lon1-0.00001, lon2+0.00001))
+           e_mean = e_mean.sel(latitude=slice(lat1-0.00001, lat2+0.00001), longitude=slice(lon1-0.00001, lon2+0.00001))
+
+           lon1 = ensmat.longitude.values[0]
+           lon2 = ensmat.longitude.values[-1]
+           lat1 = ensmat.latitude.values[0]
+           lat2 = ensmat.latitude.values[-1]
 
         else:
 
@@ -2129,7 +2163,14 @@ class ComputeForecastMetrics:
         colorlist = ("#FFFFFF", "#00ECEC", "#01A0F6", "#00BFFF", "#00FF00", "#00C800", "#009000", "#FFFF00", \
                      "#E7C000", "#FF9000", "#FF0000", "#D60000", "#C00000", "#FF00FF", "#9955C9")
 
-        ax = background_map(self.config['metric'].get('projection', 'PlateCarree'), lon1, lon2, lat1, lat2, self.config['metric'])
+        if not 'left_labels' in self.config['metric']:
+           self.config['metric']['left_labels'] = 'True'
+
+        plotDict = {}
+        plotDict['grid_interval'] = self.config['metric'].get('grid_interval',3)
+        plotDict['left_labels'] = 'True'
+        plotDict['right_labels'] = 'None'
+        ax = background_map(self.config['metric'].get('projection', 'PlateCarree'), lon1, lon2, np.min([lat1,lat2]), np.max([lat1,lat2]), plotDict)
 
         mpcp = [0.0, 0.25, 0.50, 1., 1.5, 2., 4., 6., 8., 12., 16., 24., 32., 64., 96., 97.]
         norm = matplotlib.colors.BoundaryNorm(mpcp,len(mpcp))
@@ -2753,7 +2794,24 @@ class ComputeForecastMetrics:
            nlon  = len(e_mean_pcp.longitude.values)
            nlat  = len(e_mean_pcp.latitude.values)
 
-           e_std_pcp[:,:] = e_std_pcp[:,:] * lmaskp.values[:,:]
+           fmgridp = e_mean_pcp.copy(deep=True)
+           fmgridp[:,:] = 0.0
+           lonarr, latarr = np.meshgrid(e_mean_pcp.longitude.values,e_mean_pcp.latitude.values)
+
+           #  Make sure the grid point of maximum std is within the TC radius
+           for fhr in range(fhr1p, fhr2p+fint, fint):
+
+              lat, lon=self.atcf.ens_lat_lon_time(fhr)
+              for n in range(self.nens):
+                 if lat[n] != self.atcf.missing and lon[n] != self.atcf.missing:
+
+                    if self.storm[-1] == "e" or self.storm[-1] == "c":
+                       lon[n] = (lon[n] + 360.) % 360.
+
+                    tcdist = great_circle(lon[n], lat[n], lonarr, latarr)
+                    fmgridp[:,:] = np.where(tcdist <= tcmet_space_dbuff, 1.0, fmgridp)
+
+           e_std_pcp[:,:] = e_std_pcp[:,:] * lmaskp.values[:,:] * fmgridp[:,:]
 
            stdmax = e_std_pcp.max()
 
@@ -2772,7 +2830,6 @@ class ComputeForecastMetrics:
            nloc       = 0
            pcp_std_sum= 0.
 
-           fmgridp = e_mean_pcp.copy()
            fmgridp[:,:] = 0.0
            if e_mean_pcp[jcen,icen] > pcpmin and lmaskp[jcen,icen] >= lmaskmin:
               fmgridp[jcen,icen] = 1.0
